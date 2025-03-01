@@ -1,0 +1,27 @@
+I will provide an image of a human model wearing several garments. Describe the outer layer garments the model is wearing. In the image, the model may wear one upper garment and one lower garment, or the model may wear a single wholebody garment. Avoid describing extra accessories such as the scarves, socks, watch, badges, and etc.
+
+For each garment, you should generate TWO strings.
+
+In the first string, describe the garment type (If THE SUBJECT HAS A NAME, INCLUDE ITS NAME FIRST!);
+
+  Example phrases for the first string: "hood", "T-shirt", "jacket", "tuxedo", etc.
+
+
+In the second string, describe the overall global geometric features of the garment (DO NOT INCLUDE ANY INFO ABOUT THE HUMAN MODEL AND THE COLOR INFO OF THE GARMENT) using several different short phrases split by ',' with the following tips: 
+
+  Example rules:
+  	Describe the length of the sleeves: long, normal, short, sleeveless, etc.
+  	Describe if it has a hood: with a hood, etc.
+  	Describe the length of the dress: long, normal, short, etc.
+  	Describe the width of the garment: wide, normal, narrow, etc.
+    Describe the length of the garment: long, normal, short, etc.
+  	Describe the length of the legs of trousers: long, normal, short, etc.
+
+  Please follow the example rules above (not limited to these examples) to describe the geometric features of the garment.
+
+  Example phrases for the second string: "long sleeves", "wide garment", "with a hood", "deep collar", "sleeveless"...
+
+
+Please strictly avoid mentioning color, texture, and material.
+
+In the image, if the model is wearing one upper garment and one lower garment, return the results in the following format: {"upper garment": [upper garment type, upper garment geometric features], "lower garment": [lower garment type, lower garment geometric features]}. Otherwise, the model is wearing a single wholebody garment , return the results in the following format: {"wholebody garment": [wholebody garment type, wholebody garment geometric features]}. Return only the JSON dictionary in the above format with a length of 1 or 2.

@@ -1,0 +1,5 @@
+I will provide an image of human models wearing the [GARMENT], and please focus on the [PART] on their [GARMENT].
+
+Please describe the geometry features of all the [PART] on the [GARMENT]. Please only describe geometries and structures of [PART]. Strictly avoid mentioning [DONOT] or other garment parts. Do not describe features not shared by all garment, and strictly avoid mentioning color, texture, seams, and material. 
+
+Return a Json LIST of several phrases, each describing a geometric feature of the [PART], in the Json list format: [geometry feature 1, geometry feature 2, geometry feature 3, ...].
