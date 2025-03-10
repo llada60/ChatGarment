@@ -293,6 +293,7 @@ def main(args):
     state_dict = torch.load(resume_path, map_location="cpu")
     model.load_state_dict(state_dict, strict=True)
     model = model.bfloat16().cuda()
+    device = model.device
 
     if data_args.data_path_eval[-1] == '/':
         data_args.data_path_eval = data_args.data_path_eval[:-1]
