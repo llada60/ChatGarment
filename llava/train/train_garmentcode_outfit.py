@@ -31,7 +31,7 @@ import transformers
 import tokenizers
 
 import sys
-sys.path.insert(1, '/is/cluster/fast/sbian/github/chatgarment_private')
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from torch.utils.data import Dataset

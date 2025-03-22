@@ -9,7 +9,7 @@ import json
 import pickle as pkl
 import base64
 
-sys.path.insert(1, '/is/cluster/fast/sbian/github/chatgarment_private')
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from llava.json_fixer import repair_json
 
 skirt_configs =  {

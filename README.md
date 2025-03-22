@@ -84,7 +84,7 @@ ln -s path_to_garmentcode_assets assets
 # 2. Utilizes ChatGarment Model to generate text prompts based on the image.
 # 3. Sends the ChatGarment-generated text & input image to ChatGarment Model again.
 # 4. Outputs the final GarmentCode sewing patterns.
-./scripts/v1_5/evaluate_garment_v2_imgfolder_2step.sh example_imgs/
+./scripts/v1_5/evaluate_garment_v2_imggen_2step.sh example_imgs/
 ```
 
 
@@ -96,7 +96,7 @@ ln -s path_to_garmentcode_assets assets
 # 2. Utilizes GPT-4o to generate text prompts based on the image.
 # 3. Sends the GPT-generated text exclusively to ChatGarment Model.
 # 4. Outputs the final GarmentCode sewing patterns.
-./scripts/v1_5/evaluate_garment_v2_imgfolder_1step_wopenai_simplified.sh example_imgs/
+./scripts/v1_5/evaluate_garment_v2_textgen.sh example_imgs/
 ```
 
 #### 3. Garment Editing
@@ -108,10 +108,14 @@ ln -s path_to_garmentcode_assets assets
 ./scripts/v1_5/evaluate_garment_v2_eva_edit.sh
 ```
 
+## 3D Garment Generation After Inference
+
+After inference, ChatGarment outputs 2D sewing patterns and JSON configurations in the specified ``$(OUTPUT_DIR)``.  The 2D patterns can then be stitched together to generate the corresponding 3D garments using the following code:
 
 #### 4. Generate 3D Garments Based on ChatGarment Output
 ```Shell
 # Run garment stitching to get draped 3D garments
+# For example, $(OUTPUT_DIR) = runs/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final_textgen_exampleimg
 python run_garmentcode_sim.py --all_paths_json $(OUTPUT_DIR)
 ```
 

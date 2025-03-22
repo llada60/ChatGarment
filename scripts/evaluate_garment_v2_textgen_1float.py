@@ -13,6 +13,8 @@ import pickle as pkl
 import transformers
 import tokenizers
 
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from torch.utils.data import Dataset
 
@@ -33,10 +35,8 @@ import shutil
 from llava.json_fixer import repair_json
 import yaml
 
-sys.path.insert(1, '/is/cluster/fast/sbian/github/chatgarment_private')
-
 from transformers import AutoTokenizer, BitsAndBytesConfig, CLIPImageProcessor
-from llava.train.train_garmentcode_outfit import ModelArguments, DataArguments, TrainingArguments,  rank0_print
+from llava.train.train_garmentcode_outfit import ModelArguments, DataArguments, TrainingArguments, rank0_print
 from llava.garment_utils_v2 import run_garmentcode_parser_float50
 from openai import OpenAI
 
