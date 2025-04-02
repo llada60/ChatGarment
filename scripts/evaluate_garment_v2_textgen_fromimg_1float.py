@@ -2,6 +2,8 @@ import argparse
 import copy
 import os
 import sys
+import json
+import base64
 
 import cv2
 import numpy as np
@@ -15,29 +17,30 @@ import tokenizers
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from torch.utils.data import Dataset
 
-from llava import conversation as conversation_lib
-from llava.model import *
-from llava.mm_utils import tokenizer_image_token
 import deepspeed
 from functools import partial
 from easydict import EasyDict as edict
 from typing import Dict, Optional, Sequence, List
 
 from PIL import Image
+import time
 from torch.utils.tensorboard import SummaryWriter
-import tqdm
 import shutil
-from llava.json_fixer import repair_json
+import yaml
 
+from llava.constants import DEFAULT_IMAGE_TOKEN
+from llava import conversation as conversation_lib
+from llava.model import *
+from llava.mm_utils import tokenizer_image_token
+from llava.json_fixer import repair_json
+from llava.prompts_utils import get_text_labels
 from llava.train.train_garmentcode_outfit import ModelArguments, DataArguments, TrainingArguments, rank0_print
 from llava.garment_utils_v2 import run_garmentcode_parser_float50
 
-import json
-from tqdm import tqdm
-import re 
+from openai import OpenAI
+
 
 os.environ["MASTER_PORT"] = "23499"
 
@@ -73,7 +76,7 @@ class LazyImageDataset(Dataset):
         super(LazyImageDataset, self).__init__()
         self.imagefolder = imagefolder
         all_images = [item for item in os.listdir(imagefolder) \
-                      if (item.endswith('.png') or item.endswith('.jpg'))]
+                      if (item.endswith('.png') or item.endswith('.jpg') or item.endswith('.jfif'))]
 
         self.tokenizer = tokenizer
         self.all_images = all_images
@@ -104,8 +107,30 @@ class LazyImageDataset(Dataset):
             image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
             image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
 
+        if True:
+            processor = self.data_args.image_processor
+            image_trivial = Image.open("docs/images/black_img.jpg").convert('RGB')
+            if self.data_args.image_aspect_ratio == 'pad':
+                def expand2square(pil_img, background_color):
+                    width, height = pil_img.size
+                    if width == height:
+                        return pil_img
+                    elif width > height:
+                        result = Image.new(pil_img.mode, (width, width), background_color)
+                        result.paste(pil_img, (0, (width - height) // 2))
+                        return result
+                    else:
+                        result = Image.new(pil_img.mode, (height, height), background_color)
+                        result.paste(pil_img, ((height - width) // 2, 0))
+                        return result
+                image_trivial = expand2square(image_trivial, tuple(int(x*255) for x in processor.image_mean))
+                image_trivial = processor.preprocess(image_trivial, return_tensors='pt')['pixel_values'][0]
+            else:
+                image_trivial = processor.preprocess(image_trivial, return_tensors='pt')['pixel_values'][0]
+        
         data_dict = {}
         data_dict['image'] = image
+        data_dict['image_trivial'] = image_trivial
         data_dict['image_path'] = os.path.join(image_folder, image_file)
 
         return data_dict
@@ -155,6 +180,42 @@ def translate_args(model_args, data_args, training_args):
 
     return args
 
+def encode_image(image_path):
+  with open(image_path, "rb") as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
+
+
+def ask_gpt4o(image_path, client):
+    base64_image = encode_image(image_path)
+    prompt = open("docs/smplified_image_description.txt", "r").read()
+
+    response = client.chat.completions.create(
+        model="gpt-4o-2024-05-13",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {   
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}",
+                            "detail": "low"
+                        }
+                    },
+                ],
+            }
+        ],
+        max_tokens=300,
+    )
+
+    result = response.choices[0].message.content
+
+    result_dict, used_config_text = get_text_labels(result)
+    text_description = json.dumps(result_dict)
+    text_description = text_description.replace('"', "'")
+    return text_description, used_config_text
+
     
 def main(args):
     attn_implementation = 'flash_attention_2'
@@ -200,7 +261,6 @@ def main(args):
         attn_implementation=attn_implementation,
         torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
         seg_token_idx=args.seg_token_idx,
-        # hidden_size=768,
         **bnb_model_from_pretrained_args
     )
     
@@ -219,6 +279,7 @@ def main(args):
         def make_inputs_require_grad(module, input, output):
             output.requires_grad_(True)
         model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
+
 
     assert model_args.version == "v1"
     tokenizer.pad_token = tokenizer.unk_token
@@ -295,53 +356,46 @@ def main(args):
     model = model.bfloat16().cuda()
     device = model.device
 
-    if data_args.data_path_eval[-1] == '/':
-        data_args.data_path_eval = data_args.data_path_eval[:-1]
-    if data_args.data_path_eval.split('/')[-1] == 'img' or data_args.data_path_eval.split('/')[-1] == 'imgs':
-        dataset_name = data_args.data_path_eval.split('/')[-2]
-    else:
-        dataset_name = data_args.data_path_eval.split('/')[-1]
-        
     args.exp_name = resume_path.split('/')[-2]
-    parent_folder = os.path.join(args.log_base_dir, args.exp_name, + f'{dataset_name}_img_recon')
+    parent_folder = os.path.join(args.log_base_dir, args.exp_name, + 'textgen_from_exampleimg')
     if not os.path.exists(parent_folder):
         os.makedirs(parent_folder)
 
     print('val_dataset', len(val_dataset))
     len_val_dataset = len(val_dataset)
-    # model.eval()
+
+    client = OpenAI()
     
-    # hmr_batch = next(iter(train_dataset))
     random.seed(0)
     all_output_dir = []
     all_json_spec_files = []
-    for i in range(len_val_dataset):    
-        data_item = val_dataset[i]
-        
+    for i in range(len(val_dataset)):    
+        data_item = val_dataset[i]      
+
+        image_path = data_item['image_path']
+        print('image_path', image_path)
+        # try:
+        #     gpt_4o_description, text_labels = ask_gpt4o(image_path, client)
+        # except:
+        #     continue
+        gpt_4o_description, text_labels = ask_gpt4o(image_path, client)
+
         answers = []
-        question1 = 'Can you describe the geometry features of the garments worn by the model in the Json format?'
-        question2 = 'Can you estimate the sewing pattern code based on the image and Json format garment geometry description?'
-        visualizations = []
-        questions = [question1, question2]
+        question2 = 'Can you estimate the outfit sewing pattern code based on the Json format garment geometry description?'
+        questions = [question2]
         
         for k in range(len(questions)):
             conv = conversation_lib.conv_templates[model_args.version].copy()
             conv.messages = []
-            if k == 0:
-                prompt = question1
-                prompt = DEFAULT_IMAGE_TOKEN + "\n" + prompt
-                
-            else:
-                # prompt = 'can you describe this pose?'
-                prompt = DEFAULT_IMAGE_TOKEN + "\n" + question2 + "\n" + text_output.replace('upper_garment', 'upperbody_garment').replace('lower_garment', 'lowerbody_garment')
-                print('prompt', prompt)
-                # assert False
+           
+            prompt = DEFAULT_IMAGE_TOKEN + "\n" + question2 + "\n" + gpt_4o_description
+            print('prompt', prompt)
             
             conv.append_message(conv.roles[0], prompt)
             conv.append_message(conv.roles[1], None)
             prompt = conv.get_prompt()
 
-            image_clip = data_item['image']
+            image_clip = data_item['image_trivial']
             image_clip = image_clip.unsqueeze(0).to(device)
             assert args.precision == "bf16"
             image_clip = image_clip.bfloat16()
@@ -361,17 +415,12 @@ def main(args):
 
             output_ids = output_ids[0, 1:]
             text_output = tokenizer.decode(output_ids, skip_special_tokens=False).strip().replace("</s>", "")
-
-            if k == 0:
-                continue
             
+            print(f"text_output:    ???{text_output}???")
             text_output = text_output.replace('[STARTS]', '').replace('[SEG]', '').replace('[ENDS]', '')
             answers.append(text_output)
 
             if True:
-                image_path = data_item['image_path']
-                print('image_path', image_path)
-
                 garment_id = image_path.split('/')[-1]
                 garment_id = garment_id.split('.')[0]
                 json_output = repair_json(text_output, return_objects=True)
@@ -381,24 +430,31 @@ def main(args):
                     os.makedirs(saved_dir)
                 
                 with open(os.path.join(saved_dir, 'output.txt'), 'w') as f:
-                    f.write(prompt)
-                    f.write('\n')
+                    f.write(str(text_labels))
+                    f.write('\n\n')
+                    f.write(gpt_4o_description)
+                    f.write('\n\n')
                     f.write(text_output)
-                    f.write('\n')
+                    f.write('\n\n')
                     f.write(str(json_output))
                 
+                with open(os.path.join(saved_dir, 'output.yaml'), 'w') as f:
+                    yaml.dump(json_output, f)
 
                 output_dir = saved_dir
                 all_output_dir.append(output_dir)
                 shutil.copy(image_path, os.path.join(output_dir, f'gt_image.png'))
 
-                all_json_spec_files = run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir)
-
+                try:
+                    all_json_spec_files = run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir)
+                except Exception as e:
+                    print('Error:', e)
+        
     saved_json_Path = os.path.join(parent_folder, 'vis_new', 'all_json_spec_files.json')
     with open(saved_json_Path, 'w') as f:
         json.dump(all_json_spec_files, f)
 
-        
+
 if __name__ == "__main__":
     main(sys.argv[1:])         
 

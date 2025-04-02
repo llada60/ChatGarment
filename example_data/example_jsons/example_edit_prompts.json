@@ -1,0 +1,9 @@
+[
+    {
+        "id": "001",
+        "garmenttype": "upperbody garment",
+        "image": "example_data/example_sewing_patterns/example_shirt/valid_garment_upper_render_front.png",
+        "prompt": "Adjust the neckline to a classic crew neck and change to a sleeveless shirt",
+        "json_path": "example_data/example_sewing_patterns/example_shirt/design.yaml"
+    }
+]

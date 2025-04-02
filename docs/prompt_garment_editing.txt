@@ -1,0 +1,9 @@
+I will provide text prompts to edit some specific garment parts of the [TYPE]. Based on the prompt and the image of the original garment, generate a structured garment part description in a Python dict format. 
+
+The possible editable parts are: ['waistband', 'shirt main body panel', 'collar and neckline', 'sleeves', 'sleeve_cuff', 'skirt', 'pants', 'pant_cuff', ...]
+
+Text Prompt:
+[DESCRIPTION]
+
+Output Format:
+Only return a JSON dict in the format: ``{part-name-1: [geometry feature 1, geometry feature 2, geometry feature 3, ...], part-name-2: [...], ...}``, where ``part-name-1`` and ``part-name-2`` are names of the edited garment parts, and ``[geometry feature 1, geometry feature 2, geometry feature 3, ...]`` are features of the garment part After editing. Please ONLY focus on the geometric feature. Strictly avoid mentioning color, texture, seams, and material. Exclude garment parts that remain unchanged.

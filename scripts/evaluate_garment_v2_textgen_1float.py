@@ -28,16 +28,15 @@ from typing import Dict, Optional, Sequence, List
 
 from PIL import Image
 import time
-from llava.lisa_utils import AverageMeter, ProgressMeter, dict_to_cuda, Summary
 from torch.utils.tensorboard import SummaryWriter
 import tqdm
 import shutil
-from llava.json_fixer import repair_json
 import yaml
 
-from transformers import AutoTokenizer, BitsAndBytesConfig, CLIPImageProcessor
+from llava.json_fixer import repair_json
 from llava.train.train_garmentcode_outfit import ModelArguments, DataArguments, TrainingArguments, rank0_print
 from llava.garment_utils_v2 import run_garmentcode_parser_float50
+from llava.prompts_utils import get_gpt4o_textgen_prompt, get_text_labels_detailed
 from openai import OpenAI
 
 import json
@@ -72,44 +71,21 @@ def find_all_linear_names(model, lora_target_modules=['q_proj', 'v_proj']):
 class LazyImageDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, imagefolder: str,
+    def __init__(self, data_path: str,
                  tokenizer: transformers.PreTrainedTokenizer,
                  data_args: DataArguments,
                  max_len=-1):
         super(LazyImageDataset, self).__init__()
-        self.imagefolder = imagefolder
-        all_images = [item for item in os.listdir(imagefolder) \
-                      if (item.endswith('.png') or item.endswith('.jpg') or item.endswith('.jfif'))]
+        self.list_data_dict = json.load(open(data_path, "r"))
 
         self.tokenizer = tokenizer
-        self.all_images = all_images
         self.data_args = data_args
 
     def __len__(self):
-        return len(self.all_images)
+        return len(self.list_data_dict)
 
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
-
-        image_file = os.path.join(self.imagefolder, self.all_images[i])
-        image_folder = self.data_args.image_folder
-        processor = self.data_args.image_processor
-        image = Image.open(os.path.join(image_folder, image_file)).convert('RGB')
-        if self.data_args.image_aspect_ratio == 'pad':
-            def expand2square(pil_img, background_color):
-                width, height = pil_img.size
-                if width == height:
-                    return pil_img
-                elif width > height:
-                    result = Image.new(pil_img.mode, (width, width), background_color)
-                    result.paste(pil_img, (0, (width - height) // 2))
-                    return result
-                else:
-                    result = Image.new(pil_img.mode, (height, height), background_color)
-                    result.paste(pil_img, ((height - width) // 2, 0))
-                    return result
-            image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
-            image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-
+        source = self.list_data_dict[i]
         if True:
             processor = self.data_args.image_processor
             image_trivial = Image.open("docs/images/black_img.jpg").convert('RGB')
@@ -132,9 +108,17 @@ class LazyImageDataset(Dataset):
                 image_trivial = processor.preprocess(image_trivial, return_tensors='pt')['pixel_values'][0]
         
         data_dict = {}
-        data_dict['image'] = image
+        data_dict['id'] = source['id']
+        data_dict['garment_types'] = []
+        data_dict['garment_names'] = []
+        data_dict['garment_prompts'] = []
+        for k, v in source.items():
+            if "garment" in k:
+                data_dict['garment_types'].append(k)
+                data_dict['garment_names'].append(v['name'])
+                data_dict['garment_prompts'].append(v['text'])
+                
         data_dict['image_trivial'] = image_trivial
-        data_dict['image_path'] = os.path.join(image_folder, image_file)
 
         return data_dict
 
@@ -188,75 +172,35 @@ def encode_image(image_path):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
 
-def get_text_labels(results):
-    result_dict = repair_json(results, return_objects=True)
-
-    used_config_new = {}
-    used_config_text = []
-    
-    if "upper garment" in result_dict:
-        used_config_now = {
-            'garment_name': result_dict["upper garment"][0],
-            'geometry_styles': result_dict["upper garment"][1],
-        }
-        used_config_new['upperbody_garment'] = used_config_now
-        used_config_text.append(
-           result_dict["upper garment"][1] + ', ' + result_dict["upper garment"][0]
-        )
-    
-    if "lower garment" in result_dict:
-        used_config_now = {
-            'garment_name': result_dict["lower garment"][0],
-            'geometry_styles': result_dict["lower garment"][1],
-        }
-        used_config_new['lowerbody_garment'] = used_config_now
-        used_config_text.append(
-           result_dict["lower garment"][1] + ', ' + result_dict["lower garment"][0]
-        )
-    
-    if "wholebody garment" in result_dict:
-        used_config_now = {
-            'garment_name': result_dict["wholebody garment"][0],
-            'geometry_styles': result_dict["wholebody garment"][1],
-        }
-        used_config_new['wholebody_garment'] = used_config_now
-        used_config_text.append(
-            result_dict["wholebody garment"][1] + ', ' + result_dict["wholebody garment"][0]
+def ask_gpt4o(garment_types, garment_names, garment_prompts, client):
+    outfit_dict = {}
+    for i, garment_type in enumerate(garment_types):
+        prompt = get_gpt4o_textgen_prompt(
+            garment_names[i], garment_prompts[i]
         )
 
-    return used_config_new, used_config_text
+        response = client.chat.completions.create(
+            model="gpt-4o-2024-05-13",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+            max_tokens=300,
+        )
 
-
-def ask_gpt4o(image_path, client):
-    base64_image = encode_image(image_path)
-    prompt = open("docs/smplified_image_description.txt", "r").read()
-
-    response = client.chat.completions.create(
-        model="gpt-4o-2024-05-13",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {   
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}",
-                            "detail": "low"
-                        }
-                    },
-                ],
-            }
-        ],
-        max_tokens=300,
-    )
-
-    result = response.choices[0].message.content
-
-    result_dict, used_config_text = get_text_labels(result)
-    text_description = json.dumps(result_dict)
+        result = response.choices[0].message.content
+        result = str(result)
+        print('result', result)
+        result_dict = get_text_labels_detailed(result)
+        outfit_dict[garment_type] = result_dict
+        
+    text_description = json.dumps(outfit_dict)
     text_description = text_description.replace('"', "'")
-    return text_description, used_config_text
+    return text_description
 
     
 def main(args):
@@ -387,7 +331,7 @@ def main(args):
     
     val_dataset = LazyImageDataset(
         tokenizer=tokenizer,
-        imagefolder=data_args.data_path_eval,
+        data_path=data_args.data_path_eval,
         data_args=data_args,
     )
 
@@ -398,8 +342,8 @@ def main(args):
     model = model.bfloat16().cuda()
     device = model.device
 
-    args.exp_name = resume_path.split('/')[-2] + '_textgen_exampleimg'
-    parent_folder = os.path.join(args.log_base_dir, args.exp_name)
+    args.exp_name = resume_path.split('/')[-2]
+    parent_folder = os.path.join(args.log_base_dir, args.exp_name, 'textgen_fromprompts')
     if not os.path.exists(parent_folder):
         os.makedirs(parent_folder)
 
@@ -414,12 +358,8 @@ def main(args):
     for i in range(len(val_dataset)):    
         data_item = val_dataset[i]      
 
-        image_path = data_item['image_path']
-        print('image_path', image_path)
-        try:
-            gpt_4o_description, text_labels = ask_gpt4o(image_path, client)
-        except:
-            continue
+        gpt_4o_description = ask_gpt4o(
+            data_item['garment_types'], data_item['garment_names'], data_item['garment_prompts'], client)
 
         answers = []
         question2 = 'Can you estimate the outfit sewing pattern code based on the Json format garment geometry description?'
@@ -462,7 +402,7 @@ def main(args):
             answers.append(text_output)
 
             if True:
-                garment_id = image_path.split('/')[-1]
+                garment_id = data_item['id'].split('/')[-1]
                 garment_id = garment_id.split('.')[0]
                 json_output = repair_json(text_output, return_objects=True)
 
@@ -471,15 +411,12 @@ def main(args):
                     os.makedirs(saved_dir)
                 
                 with open(os.path.join(saved_dir, 'output.txt'), 'w') as f:
-                    f.write(str(text_labels))
-                    f.write('\n')
-                    f.write('\n')
+                    f.write(str(data_item['garment_prompts']))
+                    f.write('\n\n')
                     f.write(gpt_4o_description)
-                    f.write('\n')
-                    f.write('\n')
+                    f.write('\n\n')
                     f.write(text_output)
-                    f.write('\n')
-                    f.write('\n')
+                    f.write('\n\n')
                     f.write(str(json_output))
                 
                 with open(os.path.join(saved_dir, 'output.yaml'), 'w') as f:
@@ -487,8 +424,6 @@ def main(args):
 
                 output_dir = saved_dir
                 all_output_dir.append(output_dir)
-                shutil.copy(image_path, os.path.join(output_dir, f'gt_image.png'))
-
                 try:
                     all_json_spec_files = run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir)
                 except Exception as e:

@@ -1,0 +1,51 @@
+I will provide some text descriptions of a [TYPE]. Describe the garment based on these texts.
+
+You should generate a LIST of THREE strings.
+
+In the first string, describe the garment type (If THE SUBJECT HAS A NAME, INCLUDE ITS NAME FIRST!);
+
+  Example phrases for the first string: "hood", "T-shirt", "jacket", "tuxedo", etc.
+
+
+In the second string, describe the structures of the garment (DO NOT INCLUDE ANY INFO ABOUT THE HUMAN MODEL AND THE COLOR OF THE GARMENT) in the format of a dict. You should include the most common structures of a [TYPE] even if they are not specified in the text descriptions.
+    
+    Select the keys from the following list: 
+    ['width', 'length', 'sleeves', 'pant legs', 'waist', 'dress', 'skirt hems', 'collar', 'hood', 'waist', ... ]
+ 
+    In the value of the dict, please use several different short phrases in a list with the following tips: 
+
+        Describe the width of the garment: wide, normal, narrow, etc.
+        Describe the length of the garment: long, normal, short, etc.
+        Describe the length and width of the sleeves: long, normal, short, tight, loose sleeveless, etc.
+        Describe the detailed struture of the sleeves. Example: "asymmetrical sleeves", "straight sleeves", "puff sleeves", "three-quater sleeves", "accordion sleeves", etc.
+        Describe the length and width of the legs of trousers: long, normal, short, tight, loose legs, etc.
+        Describe the detailed struture of the pant legs. Example: "asymmetrical legs", "straight legs", "flared legs", "cropped legs", "cuffed legs", etc.
+        Describe the length and width of the dress: long dress, normal dress, short dress, tight dress, loose dress, etc.
+        Describe the detailed struture of the skirt hems. Example: "straight hem", "A-line hem", "pleated hem", "pencil hem", "slit hem", etc.
+        Describe the detailed struture of the neck or collar. Example: "crew neck", "V-neck", "turtle neck", "collarless", etc.
+        Describe the detailed struture of the hood. Example: "normal hood", "cape hood", "cowl hood", etc.
+
+An example of the dict description for a T-shirt is: 
+{   
+    'width': ['wide'],
+    'length': ['normal'],
+    'sleeves': ['elbow-length sleeves', 'tight sleeves', 'accordion sleeves'],
+    'collar': ['crew neck'],
+    'hood': ['no hood']
+}
+
+An example of the dict description for a skirt is: 
+{   
+    'width': ['wide'],
+    'length': ['knee-length'],
+    'waist': ['high waist'],
+    'skirt hems': ['pencil hem', 'pleated hem']
+}
+
+In the third string, describe the extra detailed structures of the garment (DO NOT INCLUDE ANY INFO ABOUT THE HUMAN MODEL AND THE COLOR OR PATTERN OF THE GARMENT) that are missing in the second string using several different short phrases split by ','. Example phrases for the third string: "pleated skirt", "high-waist", "zipper closure", "frayed hem", "mid-rise waist", etc. If there is no extra structures, return an empty string.
+
+Please strictly avoid mentioning color, texture, and material.
+
+Return the results in the following format: [garment type, garment geometric features, extra features]. Only return the JSON List in the above format without adding explanations.
+
+The text description is: [DESCRIPTION]

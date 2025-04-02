@@ -78,35 +78,42 @@ ln -s path_to_garmentcode_assets assets
 
 #### 1. Image-based Reconstruction (CoT)
 ```Shell
-# Run image based reconstruction with CoT for images in example_imgs/
+# Run image based reconstruction with CoT for images in example_data/example_imgs/
 # Detailed steps of the script:
 # 1. Accepts an input image.
 # 2. Utilizes ChatGarment Model to generate text prompts based on the image.
 # 3. Sends the ChatGarment-generated text & input image to ChatGarment Model again.
 # 4. Outputs the final GarmentCode sewing patterns.
-./scripts/v1_5/evaluate_garment_v2_imggen_2step.sh example_imgs/
+./scripts/v1_5/evaluate_garment_v2_imggen_2step.sh example_data/example_imgs/
 ```
 
 
 #### 2. Text-based Generation
 ```Shell
-# Run text based generation for images in example_imgs/
+# Run text based generation for prompts given in the input JSON file
 # Detailed steps of the script:
-# 1. Accepts an input image.
-# 2. Utilizes GPT-4o to generate text prompts based on the image.
-# 3. Sends the GPT-generated text exclusively to ChatGarment Model.
+# 1. Accepts an input json file.
+# 2. Utilizes GPT-4o to generate well-formed text descriptions based on the original prompts.
+# 3. Sends the GPT-generated text to ChatGarment Model.
 # 4. Outputs the final GarmentCode sewing patterns.
-./scripts/v1_5/evaluate_garment_v2_textgen.sh example_imgs/
+./scripts/v1_5/evaluate_garment_v2_textgen.sh example_data/example_jsons/example_textgen_prompts.json
 ```
+
 
 #### 3. Garment Editing
 ```Shell
-# Evaluate on ``runs/hood_simulation_garmentcode_eva_pair/`` folder (will be released).
+# Run text based generation for prompts given in the input JSON file
 # Detailed steps of the script:
-# 1. Accepts the sewing pattern & the editing commands.
-# 2. Outputs the target sewing pattern.
-./scripts/v1_5/evaluate_garment_v2_eva_edit.sh
+# 1. Accepts an input json file.
+# 2. Utilizes GPT-4o to generate well-formed editing prompts based on the original prompts.
+# 3. Sends the GPT-generated text to ChatGarment Model.
+# 4. Outputs the final GarmentCode sewing patterns.
+./scripts/v1_5/evaluate_garment_v2_demo_edit.sh example_data/example_jsons/example_edit_prompts.json
 ```
+
+#### 4. Multi-turn conversations.
+TODO.
+
 
 ## 3D Garment Generation After Inference
 

@@ -1,0 +1,31 @@
+[
+    {   
+        "id": "001",
+        "upperbody garment": {
+            "name": "shirt",
+            "text": "A crew-neck short-sleeve shirt"
+        },
+        "lowerbody garment": {
+            "name": "pants",
+            "text": "A pair of long, loose pants"
+        }
+    },
+    {   
+        "id": "002",
+        "upperbody garment": {
+            "name": "shirt",
+            "text": "A V-neck sleeveless shirt"
+        },
+        "lowerbody garment": {
+            "name": "pants",
+            "text": "A pair of shorts"
+        }
+    },
+    {   
+        "id": "003",
+        "wholebody garment": {
+            "name": "dress",
+            "text": "A long-sleeve dress"
+        }
+    }
+]

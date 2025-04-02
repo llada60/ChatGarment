@@ -15,6 +15,7 @@ from tqdm import tqdm
 import re
 import shutil
 import subprocess
+from collections import OrderedDict
 
 sys.path.insert(1, '/is/cluster/fast/sbian/github/GarmentCodeV2/')
 
@@ -23,6 +24,27 @@ from assets.garment_programs.meta_garment import MetaGarment
 from assets.bodies.body_params import BodyParameters
 from pathlib import Path
 
+
+wb_config_name = 'waistband'
+skirt_configs =  {
+    'SkirtCircle': 'flare-skirt',
+    'AsymmSkirtCircle': 'flare-skirt',
+    'GodetSkirt': 'godet-skirt',
+    'Pants': 'pants',
+    'Skirt2': 'skirt',
+    'SkirtManyPanels': 'flare-skirt',
+    'PencilSkirt': 'pencil-skirt',
+    'SkirtLevels': 'levels-skirt',
+}
+all_skirt_configs = ['skirt', 'flare-skirt', 'godet-skirt', 'pencil-skirt', 'levels-skirt', 'pants']
+
+with open('docs/all_float_paths.json', 'r') as f:
+    all_float_paths = json.load(f)
+
+
+with open('assets/design_params/design_used.yaml', 'r') as f:
+    designs_config = yaml.safe_load(f)
+    
 
 def recursive_change_params(cfg, pred_cfg, invnorm_float=False, parent_path='design'):
     if ('type' not in cfg) or not isinstance(cfg['type'], str):
@@ -160,10 +182,6 @@ def recursive_change_params_1float(cfg, pred_cfg, float_dict, invnorm_float=Fals
         cfg['v'] = v
 
     return cfg
-
-
-with open('assets/design_params/design_used.yaml', 'r') as f:
-    designs_config = yaml.safe_load(f)
 
 
 def try_generate_garments(body_measurement_path, garment_output, garment_name, output_path, 
@@ -332,8 +350,6 @@ def run_garmentcode_sim(json_paths_json):
     print('finished', json_paths_json, process.returncode)
     return
 
-with open('docs/all_float_paths.json', 'r') as f:
-    all_float_paths = json.load(f)
 
 def run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir):
     if 'upperbody_garment' in json_output:
@@ -443,6 +459,128 @@ def copy_results(info_dict, garment_id, output_dir):
     
     return
 
+
+
+
+
+
+def ordered(d, desired_key_order):
+    return OrderedDict([(key, d[key]) for key in desired_key_order])
+
+
+def recursive_simplify_params(cfg, is_used=True, unused_configs=[], parent_path='design'):
+    # change float to 4 decimal places
+    if cfg is None:
+        print(parent_path)
+
+    cfg_new = {}
+    if ('type' not in cfg) or not isinstance(cfg['type'], str):
+
+        if 'enable_asym' in cfg: ############################################
+            enable_asym = bool(cfg['enable_asym']['v'])
+            if not enable_asym:
+                cfg_new['enable_asym'] = cfg['enable_asym']['v']
+                return cfg_new
+
+        if parent_path == 'design.sleeve.cuff' and cfg['type']['v'] is None:
+            return {'type': None}
+
+        if parent_path == 'design.left.sleeve.cuff' and cfg['type']['v'] is None:
+            return {'type': None}
+        
+        if parent_path == 'design.pants.cuff' and cfg['type']['v'] is None:
+            return {'type': None}
+        
+        for subpattern_n, subpattern_cfg in cfg.items():
+            if (subpattern_n in unused_configs) and ('meta' in cfg):
+                continue
+            else:
+                subconfig = recursive_simplify_params(subpattern_cfg, is_used=is_used, parent_path=parent_path + '.' + subpattern_n)
+            
+            cfg_new[subpattern_n] = subconfig
+    
+    else:
+        type_now = cfg['type']
+        if type_now == 'float':
+            lower_bd = float(cfg['range'][0])
+            upper_bd = float(cfg['range'][1])
+
+            float_val = cfg['v']
+            float_val_normed = (float_val - lower_bd) / (upper_bd - lower_bd)
+            cfg_new = f'<{float_val_normed:.6f}>'
+        
+        else:
+            cfg_new = cfg['v']
+
+    return cfg_new
+
+
+toplevel_desired_key_order = ['meta', 'collar', 'flare-skirt', 'godet-skirt', 'left', 'levels-skirt', 'pants', 'pencil-skirt', 'shirt', 'skirt', 'sleeve', 'waistband']
+def get_target_str_by_name(new_config):
+    # Simplify the JSON configuration to remove unnecessary parameters
+    new_config = new_config['design']
+
+    ################ get unused_configs
+    unused_configs = []
+    ub_garment = new_config['meta']['upper']['v']
+    if ub_garment is None:
+        unused_configs += ['shirt', 'collar', 'sleeve', 'left']
+    
+    wb_garment = new_config['meta']['wb']['v']
+    if not wb_garment:
+        unused_configs.append(wb_config_name)
+    
+    lower_garment = new_config['meta']['bottom']['v']
+
+    if lower_garment is None:
+        unused_configs += all_skirt_configs
+    else:
+        unused_configs += copy.deepcopy(all_skirt_configs)
+        unused_configs.remove(skirt_configs[lower_garment])
+
+        if 'base' in new_config[skirt_configs[lower_garment]]:
+            base_garment = new_config[skirt_configs[lower_garment]]['base']['v']
+            unused_configs.remove(skirt_configs[base_garment])
+
+    new_config = recursive_simplify_params(new_config, is_used=True, unused_configs=unused_configs)
+    toplevel_desired_key_order_new = []
+    for key in toplevel_desired_key_order:
+        if key in new_config:
+            toplevel_desired_key_order_new.append(key)
+
+    new_config = ordered(new_config, toplevel_desired_key_order_new)
+
+    return new_config
+
+
+def extract_all_floats_wfloats(answerdata):
+    #### get all floats
+    left_bracket = [m.start() for m in re.finditer("'<", answerdata)]
+    right_bracket = [m.start() for m in re.finditer(">'", answerdata)]
+
+
+    answer_data_processed = ''
+    last_end = 0
+    for start_idx, end_idx in zip(left_bracket, right_bracket):
+        float_str = answerdata[start_idx+2:end_idx-1]
+        float_str_new = f'{float(float_str):.3f}'
+
+        answer_data_processed = answer_data_processed + answerdata[last_end:start_idx] + float_str_new
+        last_end = end_idx + 2
+    
+    answer_data_processed = answer_data_processed + answerdata[last_end:]
+
+    return answer_data_processed
+
+
+def get_simplified_json_config(config_path):
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    simplified_config = get_target_str_by_name(config)
+    simplified_config_str = extract_all_floats_wfloats(json.dumps(simplified_config).replace('"', "'"))
+    
+    return simplified_config_str
 
 
 if __name__ == "__main__":

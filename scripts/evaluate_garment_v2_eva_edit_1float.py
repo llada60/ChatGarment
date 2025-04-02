@@ -28,7 +28,6 @@ from typing import Dict, Optional, Sequence, List
 
 from PIL import Image
 import time
-from llava.lisa_utils import AverageMeter, ProgressMeter, dict_to_cuda, Summary
 from torch.utils.tensorboard import SummaryWriter
 import tqdm
 import shutil
@@ -319,8 +318,8 @@ def main(args):
     if data_args.data_path_eval[-1] == '/':
         data_args.data_path_eval = data_args.data_path_eval[:-1]
     dataset_name = data_args.data_path_eval.split('/')[-2]
-    args.exp_name = resume_path.split('/')[-2] + f'_openai_{dataset_name}_edit_tmp'
-    parent_folder = os.path.join(args.log_base_dir, args.exp_name)
+    args.exp_name = resume_path.split('/')[-2]
+    parent_folder = os.path.join(args.log_base_dir, args.exp_name, f'{dataset_name}_edit_evaluation')
     if not os.path.exists(parent_folder):
         os.makedirs(parent_folder)
 

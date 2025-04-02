@@ -12,13 +12,13 @@ export LD_LIBRARY_PATH=$LIBRARY_PATH:$LD_LIBRARY_PATH
 export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 # export TCNN_CUDA_ARCHITECTURES=80
 
-deepspeed scripts/evaluate_garment_v2_eva_edit_1float.py \
+deepspeed scripts/evaluate_garment_v2_textgen_fromimg_1float.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
     --model_name_or_path liuhaotian/llava-v1.5-7b \
     --version v1 \
     --data_path ./ \
-    --data_path_eval /ps/scratch/ps_shared/sbian/hood_simulation_garmentcode_eva_pair/llava_preprocess.json \
+    --data_path_eval $1 \
     --image_folder ./ \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \
