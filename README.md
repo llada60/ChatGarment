@@ -119,12 +119,16 @@ TODO.
 
 After inference, ChatGarment outputs 2D sewing patterns and JSON configurations in the specified ``$(OUTPUT_DIR)``.  The 2D patterns can then be stitched together to generate the corresponding 3D garments using the following code:
 
-#### 4. Generate 3D Garments Based on ChatGarment Output
+#### 5. Generate 3D Garments Based on ChatGarment Output
 ```Shell
 # Run garment stitching to get draped 3D garments
 # For example, $(OUTPUT_DIR) = runs/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final_textgen_exampleimg
 python run_garmentcode_sim.py --all_paths_json $(OUTPUT_DIR)
 ```
+
+#### 6. Postprocessing to get more accurate garment lengths and widths
+TODO.
+
 
 ## Citation
 ```bibtex
