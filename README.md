@@ -69,6 +69,14 @@ ln -s path_to_garmentcode_assets assets
 ```
 
 
+## Relevant Packages
+1. [**GarmentCodeRC**](https://github.com/biansy000/GarmentCodeRC): A refined version of the original [GarmentCode](https://github.com/maria-korosteleva/GarmentCode) repo. It is used by ChatGarment for garment generation.
+
+2. [**ContourCraft-CG**](https://github.com/biansy000/ContourCraft-CG): A refined version of the original [ContourCraft](https://github.com/Dolorousrtur/ContourCraft) repo. It is used by ChatGarment for garment simulation.
+
+3. [**ChatGarmentDataset**](https://huggingface.co/datasets/sy000/ChatGarmentDataset). The Hugging Face repository containing ChatGarment training data.
+
+
 ## Model Training
 ```Shell
 ./scripts/v1_5/finetune_task_lora_garmentcode_wholebody_combineT2.sh
