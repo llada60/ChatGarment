@@ -1169,25 +1169,26 @@ def train(attn_implementation=None):
 
     data_path_list = {   
         "sewing_pattern_img": [
-            'data/blender_simulation_garmentcode_restpose_llava_labels/data_try_ordered_simplified_v2_all.json',
-            'data/blender_simulation_garmentcode_llava_labels/data_try_ordered_simplified_try10000_v2.json',
-            'data/blender_simulation_garmentcode_llava_labels/data_try_ordered_simplified_try10000_v4.json',
+            'checkpoints/training_data_zip/training/data_restpose_img_v1.json',
+            'checkpoints/training_data_zip/training/data_img_v2.json',
+            'checkpoints/training_data_zip/training/data_img_v4.json',
         ],
         "sewing_pattern_text": [
-            'data/blender_simulation_garmentcode_llava_labels/data_detailtext_singlegarment_ordered_simplified_try10000_noimg.json',
-            'data/blender_simulation_garmentcode_llava_labels/data_detailtextimg_ordered_simplified_try10000_noimg.json',
-            'data/blender_simulation_garmentcode_llava_labels/data_detailtextimg_ordered_simplified_try10000_noimg_v4.json',
+            'checkpoints/training_data_zip/training/data_detailtext_v2.json',
+            'checkpoints/training_data_zip/training/data_detailtext_singlegarment_v2.json',
+            'checkpoints/training_data_zip/training/data_detailtext_v4.json',
         ],
         "sewing_pattern_imgtext": [
-            'data/blender_simulation_garmentcode_llava_labels/data_detailtextimg_ordered_simplified_try10000_v2.json',
-            'data/blender_simulation_garmentcode_llava_labels/data_detailtext_singlegarment_ordered_simplified_try10000_v2.json',
-            'data/blender_simulation_garmentcode_llava_labels/data_detailtextimg_ordered_simplified_try10000_v4.json',
+            'checkpoints/training_data_zip/training/data_detailtextimg_v2.json',
+            'checkpoints/training_data_zip/training/data_detailtextimg_v3.json',
+            'checkpoints/training_data_zip/training/data_detailtextimg_v4.json',
+            'checkpoints/training_data_zip/training/data_detailtextimg_singlegarment_v2.json'
         ],
         "wild_img": [
-            'data/blender_simulation_garmentcode_restpose_llava_labels/sshq_llavaformat_list_detaildescp.json',
+            'checkpoints/training_data_zip/shhq/sshq_llavaformat_list_detaildescp.json',
         ],
         "sewing_pattern_editing": [
-            'data/blender_simulation_garmentcode_llava_labels_rand/random_newgarments_textsewing_ordered_simplified.json'
+            'checkpoints/training_data_zip/editing/random_newgarments_textsewing.json'
         ],
         "ift": [
             'playground/data/llava_v1_5_mix665k.json',

@@ -18,7 +18,7 @@ deepspeed scripts/evaluate_garment_v2_eva_edit_1float.py \
     --model_name_or_path liuhaotian/llava-v1.5-7b \
     --version v1 \
     --data_path ./ \
-    --data_path_eval /ps/scratch/ps_shared/sbian/hood_simulation_garmentcode_eva_pair/llava_preprocess.json \
+    --data_path_eval data/llava_preprocess.json \
     --image_folder ./ \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \

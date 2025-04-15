@@ -18,7 +18,7 @@ deepspeed scripts/evaluate_garment_v2_demo_edit_1float.py \
     --model_name_or_path liuhaotian/llava-v1.5-7b \
     --version v1 \
     --data_path ./ \
-    --data_path_eval docs/example_edit_prompts.json \
+    --data_path_eval example_data/example_jsons/example_edit_prompts.json \
     --image_folder ./ \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \

@@ -341,8 +341,7 @@ def run_simultion_warp(pattern_spec, sim_config, output_path, easy_texture_path=
 
 def run_garmentcode_sim(json_paths_json):
     process = subprocess.Popen(
-        ["/is/cluster/fast/sbian/anaconda3/envs/garmentcode/bin/python", 
-        "/is/cluster/fast/sbian/github/chatgarment_private/run_garmentcode_sim.py", 
+        ["python", "run_garmentcode_sim.py", 
         "--garment_json_path", str(json_paths_json)], stdout=subprocess.PIPE
     )
 

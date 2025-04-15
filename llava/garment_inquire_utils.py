@@ -97,7 +97,7 @@ def proces_gpt_labels(gpt_labels_str, changed_name):
     return label_dict, True
 
 
-prompt_init = open("docs/prompt_garment_part_inference.txt", "r").read()
+prompt_init = open("docs/prompts/prompt_garment_part_inference.txt", "r").read()
 def ask_part_question(change_name, client, base64_image):
     change_name_desc = changed_descriptions[change_name]
     donot_name = donot_descriptions[change_name]

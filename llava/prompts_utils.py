@@ -89,7 +89,7 @@ def get_text_labels_foredit(gpt4o_results):
 
 
 def get_gpt4o_textgen_prompt(garment_name, garment_description):
-    txtgen_prompt_path = 'docs/detailed_textbased_description.txt'
+    txtgen_prompt_path = 'docs/prompts/detailed_textbased_description.txt'
     with open(txtgen_prompt_path, 'r') as f:
         txtgen_prompt = f.read()
     
@@ -99,7 +99,7 @@ def get_gpt4o_textgen_prompt(garment_name, garment_description):
     
 
 def get_gpt4o_edit_prompt(garment_name, prompt):
-    edit_prompt_path = 'docs/prompt_garment_editing.txt'
+    edit_prompt_path = 'docs/prompts/prompt_garment_editing.txt'
     with open(edit_prompt_path, 'r') as f:
         edit_prompt = f.read()
     

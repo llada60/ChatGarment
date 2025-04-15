@@ -17,67 +17,26 @@ ChatGarmen utilizes large vision-language models (VLMs) to automate the estimati
 
 ## Applications
 
-
 | ![](docs/images/img_recon.gif)  | <img src="docs/images/text_generation.png" width="2000"> |
 | :--------------------: | :----------: |
 | Image-based Reconstruction | Text-based Generation |
 | ![](docs/images/video_edit.gif)  |  ![](docs/images/video_edit_2.gif)   |
 | Text-based Editing | Text-based Editing |
 
-## Install
 
-#### Environment
+## Relevant Repositories
+1. [**GarmentCodeRC**](https://github.com/biansy000/GarmentCodeRC): A refined version of the original [GarmentCode](https://github.com/maria-korosteleva/GarmentCode), used by ChatGarment for garment generation.
 
-1. Clone this repository and navigate to ChatGarment folder
-```bash
-git clone git@github.com:biansy000/ChatGarment.git
-cd ChatGarment
-```
+2. [**ContourCraft-CG**](https://github.com/biansy000/ContourCraft-CG): A refined version of the original [ContourCraft](https://github.com/Dolorousrtur/ContourCraft), used by ChatGarment for garment simulation.
 
-2. Install Package
-
-If you are not using Linux, see instructions for [macOS](https://github.com/haotian-liu/LLaVA/blob/main/docs/macOS.md) and [Windows](https://github.com/haotian-liu/LLaVA/blob/main/docs/Windows.md).
-
-```Shell
-conda create -n llava python=3.10 -y
-conda activate llava
-pip install --upgrade pip  # enable PEP 660 support
-pip install -e .
-```
-
-3. Install additional packages for training cases
-```
-pip install -e ".[train]"
-pip install flash-attn --no-build-isolation
-```
-
-4. Install [GarmentCodeRC](https://github.com/biansy000/GarmentCodeRC).
-
-#### Pretrained weights and preparations
-5. Put the [Pretrained weights](https://sjtueducn-my.sharepoint.com/:u:/g/personal/biansiyuan_sjtu_edu_cn/EQayoB8ie7ZIsFrjLWdBASQBFexZHXcGjrS6ghgGCjIMzw?e=o60Y65) to ``checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin``.
-
-6. Change the following codes in *.py files:
-```Python
-sys.path.insert(1, '/is/cluster/fast/sbian/github/chatgarment_private') # path of the current repo
-sys.path.insert(1, '/is/cluster/fast/sbian/github/GarmentCodeV2/') # path of GarmentCode repo
-```
-to their actual paths.
-
-7. Add the softlink of ``assets`` folder in ``GarmentCodeRC`` repo:
-```Shell
-ln -s path_to_garmentcode_assets assets
-```
+3. [**ChatGarmentDataset**](https://huggingface.co/datasets/sy000/ChatGarmentDataset): A Hugging Face dataset with training and inference data used in our paper.
 
 
-## Relevant Packages
-1. [**GarmentCodeRC**](https://github.com/biansy000/GarmentCodeRC): A refined version of the original [GarmentCode](https://github.com/maria-korosteleva/GarmentCode) repo. It is used by ChatGarment for garment generation.
-
-2. [**ContourCraft-CG**](https://github.com/biansy000/ContourCraft-CG): A refined version of the original [ContourCraft](https://github.com/Dolorousrtur/ContourCraft) repo. It is used by ChatGarment for garment simulation.
-
-3. [**ChatGarmentDataset**](https://huggingface.co/datasets/sy000/ChatGarmentDataset). The Hugging Face repository containing ChatGarment training data.
-
+## Installation
+The installation instructions are provided in ``docs/Installation.md``.
 
 ## Model Training
+The training data is available in [ChatGarmentDataset](https://huggingface.co/datasets/sy000/ChatGarmentDataset).
 ```Shell
 ./scripts/v1_5/finetune_task_lora_garmentcode_wholebody_combineT2.sh
 ```
@@ -120,22 +79,23 @@ ln -s path_to_garmentcode_assets assets
 ```
 
 #### 4. Multi-turn conversations.
-TODO.
+(Coming Soon)
 
 
-## 3D Garment Generation After Inference
+## After Inference
 
+#### 1. Generate 3D Garments Based on ChatGarment Output
 After inference, ChatGarment outputs 2D sewing patterns and JSON configurations in the specified ``$(OUTPUT_DIR)``.  The 2D patterns can then be stitched together to generate the corresponding 3D garments using the following code:
 
-#### 5. Generate 3D Garments Based on ChatGarment Output
 ```Shell
 # Run garment stitching to get draped 3D garments
 # For example, $(OUTPUT_DIR) = runs/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final_textgen_exampleimg
 python run_garmentcode_sim.py --all_paths_json $(OUTPUT_DIR)
 ```
 
-#### 6. Postprocessing to get more accurate garment lengths and widths
-TODO.
+#### 2. (Optional) Postprocessing for More Accurate Sizes
+ChatGarment may occasionally produce garments with incorrect lengths or widths from input images. To alleviate this, we provide a postprocessing method that refines garment sizes. Detailed instructions are available in ``docs/postprocess.md``.
+
 
 
 ## Citation

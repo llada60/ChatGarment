@@ -187,7 +187,7 @@ def encode_image(image_path):
 
 def ask_gpt4o(image_path, client):
     base64_image = encode_image(image_path)
-    prompt = open("docs/smplified_image_description.txt", "r").read()
+    prompt = open("docs/prompts/smplified_image_description.txt", "r").read()
 
     response = client.chat.completions.create(
         model="gpt-4o-2024-05-13",
