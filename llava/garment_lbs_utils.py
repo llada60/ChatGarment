@@ -107,7 +107,7 @@ def get_best_skinning_weights(mesh_garment, mesh_smpl, lbs_weights, max_distance
     L_indices = L.indices().numpy()
     L_values = L.values().numpy()
     L_size = L.size()
-    # print('L_indices', L_values.max(), L_values.min(), inv_area.max(), inv_area.min())
+
     L = sp.coo_matrix((L_values, (L_indices[0], L_indices[1])), shape=L_size).tocsr()
     L = L - sp.diags(L_sum, offsets=0)
     inv_area = inv_area.reshape(-1).cpu().numpy()
@@ -125,8 +125,6 @@ def get_best_skinning_weights(mesh_garment, mesh_smpl, lbs_weights, max_distance
     high_confidence_indices = filter_high_confidence_matches(
         garment_data, closest_points_data, threshold_distance, max_angle
     )
-    
-    # print('high_confidence_indices', len(high_confidence_indices), num_verts)
     
     low_confidence_indices = list(
         set(range(num_verts)) - set(high_confidence_indices)
@@ -177,7 +175,6 @@ def calculate_threshold_distance(verts_garment, threadhold_ratio=0.05):
     """
     
     length = verts_garment.max(dim=0)[0] - verts_garment.min(dim=0)[0]
-    # print('length', length)
     length = torch.norm(length)
 
     threshold_distance = length * threadhold_ratio
@@ -237,8 +234,6 @@ def do_inpainting(known_indices, unknown_indices, all_weights, L, inv_area):
     W = all_weights
     
     Q = -L + L @ sp.diags(inv_area) @ L
-    
-    # print(Q)
 
     S_match = np.array(known_indices)
     S_nomatch = np.array(unknown_indices)
@@ -369,8 +364,7 @@ def linear_blending(vertices_rest, R, t, lbs_weight, transform_matrix=None):
             vertices_rest, torch.ones(vertices_rest.shape[0], vertices_rest.shape[1], 1, device=vertices_rest.device)
         ], dim=-1)
         vertices_homo = torch.einsum('bkij,bnj->bnki', transform_matrix, vertices_homo)
-        
-    # print('vertices_homo', vertices_homo.shape, lbs_weight.shape)
+
     vertices_homo = (vertices_homo * lbs_weight.unsqueeze(-1)).sum(dim=2)
     vertices_new = vertices_homo[:, :, :3] / vertices_homo[:, :, [3]]
     
@@ -400,11 +394,9 @@ def linear_blending_batch(vertices_rest, R, t, lbs_weight, transform_matrix=None
 
 def put_V_back_by_A0(V, verts_mean_posed, max_length, A0_inv=None, transl=0):
     scale = max_length / 0.9
-    # print('shapes', V.shape, verts_mean_posed.shape, max_length.shape)
     V = V * scale + verts_mean_posed - transl
     
     if A0_inv is not None:
-        # print('A0_inv', V.shape, A0_inv.shape)
         V_last = torch.ones_like(V[..., :1])
         V_homo = torch.cat([V, V_last], dim=-1)
         V = torch.einsum('bij,blj->bli', A0_inv, V_homo)
@@ -495,7 +487,6 @@ def deform_garments(smplx_layer, params_old, params_new, garment_mesh, lbs_weigh
         garment_verts = garment_verts * 0.01
     
     pose2rot = False if (params_old['poses'].ndim == 4 or params_old['poses'].shape[-1] == 9) else True
-    # assert 'scale'  in params_old
     if 'scale' not in params_old:
         garment_verts = garment_verts - params_old['transl'].unsqueeze(1)
         smplx_out_old = smplx_layer.forward_simple(
@@ -517,19 +508,12 @@ def deform_garments(smplx_layer, params_old, params_new, garment_mesh, lbs_weigh
         body_verts_0 = params_old['body_vs']
         body_verts_1 = smplx_out_old.vertices
 
-        # print(body_verts_0.shape, body_verts_1.shape)
         transl = (body_verts_0.max(dim=1)[0] + body_verts_0.min(dim=1)[0] - body_verts_1.max(dim=1)[0] - body_verts_1.min(dim=1)[0]) * 0.5
         garment_verts = garment_verts - transl.unsqueeze(1)
         params_old['transl'] = transl
 
-        # body_verts_0 = body_verts_0 - body_verts_0.mean(dim=1).unsqueeze(1)
-        # body_verts_1 = body_verts_1 - body_verts_1.mean(dim=1).unsqueeze(1)
-        # print(body_verts_0.std(dim=1), body_verts_1.std(dim=1))
-
     A_old = smplx_out_old['A']
     smplx_verts = smplx_out_old.vertices
-
-    # print('A_old', A_old.shape, A_old[:, 0])
 
     garment_mesh = Meshes(verts=garment_verts, faces=garment_mesh.faces_padded())
     smplx_mesh = Meshes(verts=smplx_verts, faces=smplx_layer.faces_tensor.unsqueeze(0))
@@ -554,12 +538,6 @@ def deform_garments(smplx_layer, params_old, params_new, garment_mesh, lbs_weigh
         params_new['betas']-params_old['betas'],
         params_old['poses'], params_new['poses'],
     )
-
-    # print('garment_verts', garment_verts.shape)
-    # print('smplx_verts', smplx_verts.shape)
-    # print('A_new', A_new.shape, A_new[:, 0])
-    # print('lbs_weights', lbs_weights.shape)
-    # print('extra_disp', extra_disp[0].shape)
     
     vertices_new_bid = get_modified_garment2(
                 garment_verts[0], smplx_verts[0], A_old, A_new, final_lbs_weight, extra_disp=extra_disp[0])[0]
