@@ -72,7 +72,7 @@ def parse_args():
     parser.add_argument('--img_dir', type=str, default='checkpoints/CloSE_eva_SAM/imgs_upsampled/')
     parser.add_argument('--inp_pose_params_dir', type=str, default='checkpoints/CloSE_eva_SAM/tokenhmr_output/')
     parser.add_argument('--garmentcode_dir', type=str, default='runs/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final_eva/vis_new/')
-    parser.add_argument('--template_smpl_pkl', type=str, default='../ContourCraft-CG/aaa_mesh_registrarion/registered_params_garmentgenerator_SMPL.pkl')
+    parser.add_argument('--template_smpl_pkl', type=str, default='checkpoints/extra_data/aaa_mesh_registrarion/registered_params_garmentgenerator_SMPL.pkl')
     parser.add_argument('--saved_dir', type=str, default='checkpoints/CloSE_eva_SAM/postprocess/')
     parser.add_argument('--garment_seg_dir', type=str, default='checkpoints/CloSE_eva_SAM/mask/')
     args = parser.parse_args()
@@ -132,6 +132,8 @@ def parse_args():
         new_args_list.pop(pants_idx)
         segname_list.pop(pants_idx)
     
+    os.makedirs(os.path.join(args.saved_dir, args.imgname), exist_ok=True)
+    
     file_handler = logging.FileHandler(
         os.path.join(args.saved_dir, args.imgname, 'evaluation_log.txt')
     )
@@ -172,7 +174,7 @@ def evaluate_wrapper_base(opt_params, ori_params_all, saved_dir, name='upd',
     )
     
     json_path = os.path.join(saved_dir, f'valid_garment_{name}', f'valid_garment_{name}_specification.json')
-    command = f'python run_garmentcode_sim.py --garment_json_path "" --json_spec_file "{json_path}"'
+    command = f'python run_garmentcode_sim.py --json_spec_file "{json_path}"'
     subprocess.run(command, shell=True, text=True)
     
     # LBS re-pose
@@ -270,6 +272,8 @@ def FDM(args):
     
     gt_seg_vis = img * 0.5 + garment_seg.reshape(img_size[0], img_size[1], 1) * 0.5
     cv2.imwrite(os.path.join(args.saved_path, 'gt_seg_vis.png'), gt_seg_vis)
+    
+    print(img_size, garment_seg.size)
     
     garment_seg = torch.from_numpy(np.array(garment_seg)).squeeze(-1).float().to(DEVICE) / 255.0
     person_seg = torch.from_numpy(np.array(person_seg)).squeeze(-1).float().to(DEVICE) / 255.0

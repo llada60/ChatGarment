@@ -303,7 +303,7 @@ def main(args):
         dataset_name = data_args.data_path_eval.split('/')[-1]
         
     args.exp_name = resume_path.split('/')[-2]
-    parent_folder = os.path.join(args.log_base_dir, args.exp_name, + f'{dataset_name}_img_recon')
+    parent_folder = os.path.join(args.log_base_dir, args.exp_name, f'{dataset_name}_img_recon')
     if not os.path.exists(parent_folder):
         os.makedirs(parent_folder)
 

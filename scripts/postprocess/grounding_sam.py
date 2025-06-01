@@ -25,7 +25,7 @@ from segment_anything import SamPredictor, sam_model_registry
 from tqdm.auto import tqdm
 from scipy import ndimage
 
-from openai import openAI
+from openai import OpenAI
 end_list = np.array([17, 22, 27, 42, 48, 31, 36, 68], dtype=np.int32) - 1
 
 
