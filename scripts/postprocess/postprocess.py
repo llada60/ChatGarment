@@ -273,8 +273,6 @@ def FDM(args):
     gt_seg_vis = img * 0.5 + garment_seg.reshape(img_size[0], img_size[1], 1) * 0.5
     cv2.imwrite(os.path.join(args.saved_path, 'gt_seg_vis.png'), gt_seg_vis)
     
-    print(img_size, garment_seg.size)
-    
     garment_seg = torch.from_numpy(np.array(garment_seg)).squeeze(-1).float().to(DEVICE) / 255.0
     person_seg = torch.from_numpy(np.array(person_seg)).squeeze(-1).float().to(DEVICE) / 255.0
     if pant_seg is not None:
@@ -373,7 +371,6 @@ def FDM(args):
 
 if __name__ == '__main__':
     args_list = parse_args()
-    args_list = args_list[1:]
     for args in args_list:
         FDM(args)
     
