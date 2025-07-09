@@ -183,7 +183,7 @@ def gpt4v_captioning(img_dir, out_dir):
 
     saved_paths = [os.path.join(out_dir, 'gpt_responses', f'gpt_response_{i}_{img_name[:-4]}.json') for i, img_name in enumerate(used_lst)]
     
-    client = openAI()
+    client = OpenAI()
     
     results = {}
     for i, image in tqdm(enumerate(images)):
