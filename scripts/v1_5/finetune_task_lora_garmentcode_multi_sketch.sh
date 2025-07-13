@@ -10,9 +10,10 @@
 # export LD_LIBRARY_PATH=$LIBRARY_PATH:$LD_LIBRARY_PATH
 
 export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
+# export MASTER_PORT=23481
 # export TCNN_CUDA_ARCHITECTURES=80
 
-deepspeed llava/train/image/train_mem_garmentcode_outfit.py \
+deepspeed llava/train/multi-sketch/train_mem_garmentcode_outfit.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
     --model_name_or_path /home/ids/liliu/data/llava/llava-v1.5-7b \

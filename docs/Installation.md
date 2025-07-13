@@ -27,13 +27,13 @@ Put the [Pretrained weights](https://sjtueducn-my.sharepoint.com/:u:/g/personal/
 #### 5. Update Paths in Code
 Modify the following lines in relevant Python files:
 ```Python
-sys.path.insert(1, '/is/cluster/fast/sbian/github/chatgarment_private') # path of the current ChatGarment repo
-sys.path.insert(1, '/is/cluster/fast/sbian/github/GarmentCodeV2/') # path of GarmentCodeRC repo
+sys.path.insert(1, '/home/ids/liliu/projects/ChatGarment') # path of the current ChatGarment repo
+sys.path.insert(1, '/home/ids/liliu/projects/ChatGarment/GarmentCodeRC/') # path of GarmentCodeRC repo
 ```
 Replace with their actual local paths.
 
 #### 6. Add Soft Link 
 Add the softlink of ``assets`` folder in ``GarmentCodeRC`` repo:
 ```Shell
-ln -s path_to_garmentcode_assets assets
+ln -s /home/ids/liliu/projects/ChatGarment/GarmentCodeRC/assets assets
 ```

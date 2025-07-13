@@ -32,9 +32,9 @@ import tqdm
 import shutil
 from llava.json_fixer import repair_json
 
-from llava.train.image.train_garmentcode_outfit import ModelArguments, DataArguments, TrainingArguments, rank0_print
+from llava.train.sketch.train_garmentcode_outfit import ModelArguments, DataArguments, TrainingArguments, rank0_print
 from llava.garment_utils_v2 import run_garmentcode_parser_float50
-s
+
 import json
 from tqdm import tqdm
 import re 
@@ -304,7 +304,9 @@ def main(args):
         dataset_name = data_args.data_path_eval.split('/')[-2]
     else:
         dataset_name = data_args.data_path_eval.split('/')[-1]
-        
+    # Note: dataset_name
+    dataset_name = "close_eva_imgs"
+    
     args.exp_name = resume_path.split('/')[-2]
     parent_folder = os.path.join(args.log_base_dir, args.exp_name, f'{dataset_name}_img_recon')
     if not os.path.exists(parent_folder):
@@ -318,8 +320,18 @@ def main(args):
     random.seed(0)
     all_output_dir = []
     all_json_spec_files = []
-    for i in range(len_val_dataset):    
+    for i in range(len_val_dataset):   
+
         data_item = val_dataset[i]
+
+        # Note: quick skip
+        image_path = data_item['image_path']
+        garment_id = image_path.split('/')[-1]
+        garment_id = garment_id.split('.')[0]
+        saved_dir = os.path.join(parent_folder, 'vis_new', f'valid_garment_{garment_id}')
+        # if there is something inside saved_dir continue
+        if os.path.exists(saved_dir) and len(os.listdir(saved_dir)) > 0:
+            continue
         
         answers = []
         question1 = 'Can you describe the geometry features of the garments worn by the model in the Json format?'
@@ -381,6 +393,7 @@ def main(args):
                 json_output = repair_json(text_output, return_objects=True)
 
                 saved_dir = os.path.join(parent_folder, 'vis_new', f'valid_garment_{garment_id}')
+
                 if not os.path.exists(saved_dir):
                     os.makedirs(saved_dir)
                 
@@ -395,8 +408,12 @@ def main(args):
                 output_dir = saved_dir
                 all_output_dir.append(output_dir)
                 shutil.copy(image_path, os.path.join(output_dir, f'gt_image.png'))
-
-                all_json_spec_files = run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir)
+                try:
+                    all_json_spec_files = run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir)
+                except:
+                    print(f"Error processing garment {garment_id}, skipping...")
+                    print(json_output)
+                    continue
 
     saved_json_Path = os.path.join(parent_folder, 'vis_new', 'all_json_spec_files.json')
     with open(saved_json_Path, 'w') as f:

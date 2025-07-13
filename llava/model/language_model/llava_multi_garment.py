@@ -1,51 +1,42 @@
-#    Copyright 2023 Haotian Liu
-#
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-#
-#        http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-
-
-from typing import List, Optional, Tuple, Union
-
+from typing import List, Optional, Tuple, Union, Dict
 import torch
 import torch.nn as nn
+from torch.nn import CrossEntropyLoss
 
-from transformers import AutoConfig, AutoModelForCausalLM, \
-                         LlamaConfig, LlamaModel, LlamaForCausalLM
+import transformers
+from transformers import AutoConfig, AutoModelForCausalLM, LlamaConfig, LlamaModel, LlamaForCausalLM
 
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation.utils import GenerateOutput
 
-from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-import torch.nn.functional as F
-from llava.model.language_model.llava_llama import LlavaLlamaForCausalLM
-# from transformers.generation.utils import *
+# from ...constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from llava.model.llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
+from transformers import Qwen2Config, Qwen2Model, Qwen2ForCausalLM
 
-class LlavaConfig(LlamaConfig):
-    model_type = "llava_llama"
+# from .qwen.modeling_qwen import QWenLMHeadModel, QWenModel
+# from .qwen.configuration_qwen import QWenConfig
 
 
-class LlavaLlamaModel(LlavaMetaModel, LlamaModel):
-    config_class = LlavaConfig
-
-    def __init__(self, config: LlamaConfig):
-        super(LlavaLlamaModel, self).__init__(config)
+class LlavaQwenConfig(Qwen2Config):
+    model_type = "llava_qwen"
 
 
-class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
-    config_class = LlavaConfig
+class LlavaQwenModel(LlavaMetaModel, Qwen2Model):
+    config_class = LlavaQwenConfig
 
-    def __init__(self, config, **kwargs,):
-        super(GarmentGPTFloat50ForCausalLM, self).__init__(config)
+    def __init__(self, config: Qwen2Config):
+        super(LlavaQwenModel, self).__init__(config)
+
+
+class Multi_GarmentGPTFloat50ForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
+    config_class = LlavaQwenConfig
+
+    def __init__(self, config, **kwargs, ):
+        super(Multi_GarmentGPTFloat50ForCausalLM, self).__init__(config)
+        Qwen2ForCausalLM.__init__(self, config)
+        config.model_type = "llava_qwen"
+        config.rope_scaling = None
+
 
         self.seg_token_idx = kwargs.pop("seg_token_idx")
 
@@ -59,9 +50,15 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
         self.float_layer.train()
         for p in self.float_layer.parameters():
             p.requires_grad = True
-        
+
+
+        self.model = LlavaQwenModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        # Initialize weights and apply final processing
         self.post_init()
+
+    def get_model(self):
+        return self.model
 
     def forward(
         self,
@@ -79,25 +76,46 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
         return_dict: Optional[bool] = None,
         float_labels: Optional[torch.FloatTensor] = None,
         float_weight: Optional[torch.FloatTensor] = None,
-        inference: Optional[bool] = False,
-        # input_ids_backup: Optional[torch.LongTensor] = None,
+        inference: Optional[bool] = False,        
+        modalities: Optional[List[str]] = ["image"],
+        dpo_forward: Optional[bool] = False,
+        cache_position=None,
+        inference: Option[bool] = False,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
-        if inputs_embeds is not None:
-            input_ids = None
+        if inputs_embeds is None:
+            (input_ids, position_ids, attention_mask, past_key_values, inputs_embeds, labels) = self.prepare_inputs_labels_for_multimodal(input_ids, position_ids, attention_mask, past_key_values, labels, images, modalities, image_sizes)
 
+        # if dpo_forward:
+        #     outputs = self.model(
+        #         input_ids=input_ids,
+        #         attention_mask=attention_mask,
+        #         position_ids=position_ids,
+        #         past_key_values=past_key_values,
+        #         inputs_embeds=inputs_embeds,
+        #         use_cache=use_cache,
+        #         output_attentions=output_attentions,
+        #         output_hidden_states=output_hidden_states,
+        #         return_dict=return_dict,
+        #     )
+
+        #     hidden_states = outputs[0]
+        #     logits = self.lm_head(hidden_states)
+        #     return logits, labels
+
+        # else:
         output = super().forward(
             input_ids=input_ids, # [batch_size, seq_len]
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,
-            labels=labels,
+            labels=labels, # following Chatgarment
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=True,
-            images=images,
-            image_sizes=image_sizes,
+            images=images, # following Chatgarment
+            image_sizes=image_sizes, # following Chatgarment
             return_dict=return_dict
         )
 
@@ -116,6 +134,7 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
             )
             # assure the seg_token_mask is the same length as output_hidden_states by adding 0 padding in the front
             padded_len = output_hidden_states[-1].shape[1] - seg_token_mask.shape[1]
+            # True on [SEG], False on other idx.
             seg_token_mask = torch.cat(
                     [torch.zeros((seg_token_mask.shape[0], padded_len)).bool().cuda(), seg_token_mask],
                     dim=1,
@@ -124,7 +143,6 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
         else:
             #### inference
             return output
-
 
         if seg_token_mask.sum() > 0: # at least one [SEG] token
             # output_hidden_states.shape # [bs, seq_len, hidden_size]
@@ -159,7 +177,7 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
                     raise NotImplementedError   
             else:
                 hmr_loss = output.loss
-        
+
         else:
             hmr_loss = output.loss * 0.0
 
@@ -175,7 +193,7 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
             "predictions": output,
             'output_ids': output_ids
         }
-    
+
 
     def evaluate(
         self,
@@ -240,8 +258,27 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
 
         return inputs
 
+    @torch.no_grad()
+    def generate(
+        self,
+        inputs: Optional[torch.Tensor] = None,
+        images: Optional[torch.Tensor] = None,
+        image_sizes: Optional[torch.Tensor] = None,
+        modalities: Optional[List[str]] = ["image"],
+        **kwargs,
+    ) -> Union[GenerateOutput, torch.LongTensor]:
+        position_ids = kwargs.pop("position_ids", None)
+        attention_mask = kwargs.pop("attention_mask", None)
+        if "inputs_embeds" in kwargs:
+            raise NotImplementedError("`inputs_embeds` is not supported")
 
-    
-######################## ?
-AutoConfig.register("llava_llama", LlavaConfig)
-AutoModelForCausalLM.register(LlavaConfig, GarmentGPTFloat50ForCausalLM)
+        if images is not None:
+            (inputs, position_ids, attention_mask, _, inputs_embeds, _) = self.prepare_inputs_labels_for_multimodal(inputs, position_ids, attention_mask, None, None, images, modalities, image_sizes=image_sizes)
+        else:
+            inputs_embeds = self.get_model().embed_tokens(inputs)
+
+        return super().generate(position_ids=position_ids, attention_mask=attention_mask, inputs_embeds=inputs_embeds, **kwargs)
+
+
+AutoConfig.register("llava_qwen", LlavaQwenConfig)
+AutoModelForCausalLM.register(LlavaQwenConfig, LlavaQwenForCausalLM)

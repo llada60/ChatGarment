@@ -117,15 +117,16 @@ def resizeAndPad(img, size, padColor=0):
 
 def convert_rgba_to_rgb_with_white_bg_cv2(image_path):
     """Convert an RGBA image to an RGB image with a white background using OpenCV."""
-
     # Read the image with unchanged flag to keep alpha channel if present
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+    # image now is 255 and 0 bianry image (H,W); now convert it to RGB (H, W, 3)
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
     if image is None:
         raise FileNotFoundError(f"Cannot open image: {image_path}")
 
     # Check if image has alpha channel
-    if image.shape[2] == 4:
+    if len(image.shape) > 2 and image.shape[2] == 4:
         # Split into color and alpha channels
         b, g, r, a = cv2.split(image)
         
@@ -222,12 +223,12 @@ def gpt4v_captioning(img_dir, out_dir):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--in_dir', type=str, required=True, help="input image folder")
-    parser.add_argument('--out_dir', type=str, required=True, help="output mask folder")
+    parser.add_argument('--in_dir', type=str, default="/home/ids/liliu/data/ChatGarment/v2/1046/motion_0/imgs/150/img", help="input image folder")
+    parser.add_argument('--out_dir', type=str, default="runs/example_eva_SAM", help="output mask folder")
     parser.add_argument('--overwrite', action="store_true")
     opt = parser.parse_args()
 
-    gpt_filename = "gpt4v_prompt.json"
+    # gpt_filename = "gpt4v_prompt.json"
 
     if not os.path.exists(f"{opt.out_dir}/mask"):
         os.makedirs(f"{opt.out_dir}/mask", exist_ok=True)
@@ -256,16 +257,19 @@ if __name__ == '__main__':
     sam = sam_model_registry[SAM_ENCODER_VERSION](checkpoint=SAM_CHECKPOINT_PATH).to(device=DEVICE)
     sam_predictor = SamPredictor(sam)
 
-    BOX_TRESHOLD = 0.20
-    TEXT_TRESHOLD = 0.25
+    BOX_TRESHOLD = 0.15
+    TEXT_TRESHOLD = 0.20
 
-    if True:
-        gpt4v_responses = gpt4v_captioning(opt.in_dir, out_dir=opt.out_dir)
-        print(gpt4v_responses)
+    # if True:
+    #     gpt4v_responses = gpt4v_captioning(opt.in_dir, out_dir=opt.out_dir)
+    #     print(gpt4v_responses)
 
     image_dir = sorted(os.listdir(opt.in_dir))
     for imgid, img_name in enumerate(tqdm(image_dir)):
-        CLASSES = [item.strip() for item in json.loads(gpt4v_responses[ f'{imgid}_{img_name[:-4]}' ]).keys()]
+        if not img_name.endswith('.jpg') and not img_name.endswith('.png'):
+            continue
+        CLASSES = ["dress", "skirt", "pants", "shirt", "coat"]
+        # CLASSES = [item.strip() for item in json.loads(gpt4v_responses[ f'{imgid}_{img_name[:-4]}' ]).keys()]
         CLASSES = ["person"] + CLASSES
 
         print(CLASSES)
@@ -274,8 +278,9 @@ if __name__ == '__main__':
         if not os.path.exists(os.path.join(opt.out_dir, 'imgs_upsampled')):
             os.makedirs(os.path.join(opt.out_dir, 'imgs_upsampled'), exist_ok=True)
 
-        # image = cv2.imread(img_path)
-        image = convert_rgba_to_rgb_with_white_bg_cv2(img_path)
+        image = cv2.imread(img_path)
+        if len(image.shape) == 2:
+            image = convert_rgba_to_rgb_with_white_bg_cv2(img_path)
         if True:
             image = resizeAndPad(image, (4096, 4096))
             cv2.imwrite(os.path.join(opt.out_dir, 'imgs_upsampled', img_name), image)

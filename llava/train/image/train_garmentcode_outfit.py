@@ -22,6 +22,7 @@ import logging
 import pathlib
 from typing import Dict, Optional, Sequence, List
 import shutil
+import time
 
 import numpy as np
 import torch
@@ -668,13 +669,13 @@ class LazySupervisedDataset(Dataset):
         sources = copy.deepcopy(self.list_data_dict[i])
 
         ################ prompt augmentation ################
-        prompt = sources["conversations"][0]["value"]
+        prompt = sources["conversations"][0]["value"] # human prompt
         prompt = change_prompt(prompt[:])
         sources["conversations"][0]["value"] = prompt
 
         if self.has_sewing_pattern:
-            answer = sources["conversations"][1]["value"]
-            answer, indices = change_answer(answer[:], self.all_float_paths_dict, True)
+            answer = sources["conversations"][1]["value"] # gpt answer
+            answer, indices = change_answer(answer[:], self.all_float_paths_dict, True) 
             sources["conversations"][1]["value"] = answer
 
         ################ add trivial image if no image ################
@@ -693,7 +694,7 @@ class LazySupervisedDataset(Dataset):
         if 'all_floats' in sources[0]:
             has_floats = True
             all_floats, all_floats_weight = generate_all_float_labels(sources[0]['all_floats'], indices)
-            
+        
         if 'image' in sources[0]:
             image_file = sources[0]['image']
             image_folder = self.data_args.image_folder
@@ -767,12 +768,9 @@ class LazySupervisedDatasetCmb(Dataset):
         super(LazySupervisedDatasetCmb, self).__init__()
         
         prob_dict = {
-            "sewing_pattern_img": 0.1,
-            "sewing_pattern_text": 0.1,
-            "sewing_pattern_imgtext": 0.2,
-            "wild_img": 0.1,
-            "sewing_pattern_editing": 0.15,
-            "ift": 0.35
+            "sewing_pattern_img": 0.4,
+            "sewing_pattern_text": 0.2,
+            "sewing_pattern_imgtext": 0.4
         }
 
         self.datasets = []
@@ -1168,30 +1166,21 @@ def train(attn_implementation=None):
     model.print_trainable_parameters()
 
     data_path_list = {   
-        "sewing_pattern_img": [
-            'checkpoints/training_data_zip/training/data_restpose_img_v1.json',
-            'checkpoints/training_data_zip/training/data_img_v2.json',
-            'checkpoints/training_data_zip/training/data_img_v4.json',
+        "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_restpose_img_v1.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v4.json',
         ],
-        "sewing_pattern_text": [
-            'checkpoints/training_data_zip/training/data_detailtext_v2.json',
-            'checkpoints/training_data_zip/training/data_detailtext_singlegarment_v2.json',
-            'checkpoints/training_data_zip/training/data_detailtext_v4.json',
+        "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_singlegarment_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v4.json',
         ],
-        "sewing_pattern_imgtext": [
-            'checkpoints/training_data_zip/training/data_detailtextimg_v2.json',
-            'checkpoints/training_data_zip/training/data_detailtextimg_v3.json',
-            'checkpoints/training_data_zip/training/data_detailtextimg_v4.json',
-            'checkpoints/training_data_zip/training/data_detailtextimg_singlegarment_v2.json'
-        ],
-        "wild_img": [
-            'checkpoints/training_data_zip/shhq/sshq_llavaformat_list_detaildescp.json',
-        ],
-        "sewing_pattern_editing": [
-            'checkpoints/training_data_zip/editing/random_newgarments_textsewing.json'
-        ],
-        "ift": [
-            'playground/data/llava_v1_5_mix665k.json',
+        "sewing_pattern_imgtext": [ # ['garment_id', 'sketch_num', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v3.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_singlegarment_v2.json'
         ]
     }
 
@@ -1281,7 +1270,9 @@ def train(attn_implementation=None):
         if True:
             best_score = 0.0
             cur_ciou = 0.0
-            save_dir = os.path.join(args.log_dir, "ckpt_model")
+            current_time = time.strftime("%m-%d_%H_%M", time.localtime())
+            # save_dir follow by current time)
+            save_dir = os.path.join(args.log_dir, "ckpt_model_epoch{}_{}".format(epoch, current_time))
             if args.local_rank == 0:
                 torch.save(
                     {"epoch": epoch},

@@ -118,7 +118,9 @@ def change_prompt(prompt):
 
 
 def recursive_simplify_params(cfg, all_float_paths_dict, parent_path='design'):
-    # change float to 4 decimal places
+    """
+    return dict cfg: (key: part name, value: subconfig (deepest one is [SEG]-idx, which is the param idx in all_float_paths__dict [idx<76]))
+    """
     cfg_new = {}
     if isinstance(cfg, dict):
         for subpattern_n, subpattern_cfg in cfg.items():
