@@ -13,6 +13,12 @@ moderation_msg = "YOUR INPUT VIOLATES OUR CONTENT MODERATION GUIDELINES. PLEASE 
 
 handler = None
 
+local_rank = None
+os.environ["MASTER_PORT"] = "23480"
+
+def rank0_print(*args):
+    if local_rank == 0:
+        print(*args)
 
 def build_logger(logger_name, logger_filename):
     global handler

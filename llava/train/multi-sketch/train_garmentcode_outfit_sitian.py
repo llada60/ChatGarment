@@ -33,6 +33,7 @@ import tokenizers
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../.."))
 
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from torch.utils.data import Dataset
@@ -58,12 +59,6 @@ from llava.train.sketch.args.argument import DataArguments, ModelArguments, Trai
 
 from llava.model.llava_next_builder import load_pretrained_model
 
-local_rank = None
-os.environ["MASTER_PORT"] = "23480"
-
-def rank0_print(*args):
-    if local_rank == 0:
-        print(*args)
 
 
 from packaging import version
@@ -407,7 +402,7 @@ def train(attn_implementation=None):
     #     use_fast=False,
     # )
 
-    pretrained = "/home/ids/liliu/models/llava-onevision-qwen2-7b-ov"
+    pretrained = model_args.model_name_or_path
     model_name = "llava_qwen"
     device = "cuda"
     device_map = "auto"
