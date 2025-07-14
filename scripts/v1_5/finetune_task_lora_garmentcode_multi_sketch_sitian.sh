@@ -13,10 +13,10 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 # export MASTER_PORT=23481
 # export TCNN_CUDA_ARCHITECTURES=80
 
-deepspeed train_garmentcode_outfit_sitian.py \
+python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi-sketch/train_garmentcode_outfit_sitian.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
-    --model_name_or_path /home/ids/liliu/models/llava-onevision-qwen2-7b-ov \
+    --model_name_or_path /home/sitian/Texture-Deform_2DSketchGarments/llava/model/language_model/llava-onevision-qwen2-7b-ov-chat \
     --version v1 \
     --data_path ./ \
     --data_path_eval /home/ids/liliu/data/ChatGarment/evaluations/garment_edit_eva.json \
