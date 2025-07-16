@@ -19,7 +19,7 @@ python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi-sketch/tra
     --model_name_or_path /home/sitian/Texture-Deform_2DSketchGarments/llava/model/language_model/llava-onevision-qwen2-7b-ov-chat \
     --version v1 \
     --data_path ./ \
-    --data_path_eval /home/ids/liliu/data/ChatGarment/evaluations/garment_edit_eva.json \
+    --data_path_eval /home/sitian/Texture-Deform_2DSketchGarments/data/evaluations/garment_edit_eva.json \
     --image_folder ./ \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \
