@@ -26,6 +26,7 @@ python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi-sketch/tra
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
+    --mm_resampler_type "spatial_pool" \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
@@ -48,5 +49,5 @@ python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi-sketch/tra
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
-    --report_to wandb
+    --report_to wandb 
 
