@@ -398,15 +398,16 @@ def train(attn_implementation=None):
 
     assert training_args.bits not in [4, 8]
     assert model_args.vision_tower is not None
-    assert 'mpt' not in model_args.model_name_or_path
+    assert 'mpt' not in model_args.tokenizer_name_or_path
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path,
+        model_args.tokenizer_name_or_path,
         cache_dir=training_args.cache_dir,
         model_max_length=training_args.model_max_length,
         padding_side="right",
         use_fast=False,
     )
+
     tokenizer.pad_token = tokenizer.unk_token
     tokenizer.add_tokens("[SEG]")
 
@@ -581,7 +582,7 @@ def train(attn_implementation=None):
     
     print("loading resume ", args.resume)
     if args.resume.endswith(".bin"):
-        # print("Loading checkpoint from {}".format(args.resume))
+        print("Loading checkpoint from {}".format(args.resume))
         state_dict = torch.load(args.resume, map_location="cpu")
         model.load_state_dict(state_dict, strict=True)
         model = model.bfloat16().cuda()
