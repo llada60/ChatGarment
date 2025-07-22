@@ -13,10 +13,10 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 # export MASTER_PORT=23481
 # export TCNN_CUDA_ARCHITECTURES=80
 
-deepspeed llava/train/multi-sketch/train_mem_garmentcode_outfit.py \
+deepspeed llava/train/multi_sketch/train_mem_garmentcode_outfit.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
-    --model_name_or_path /home/ids/liliu/data/llava/llava-v1.5-7b \
+    --model_name_or_path /home/ids/liliu/models/llava-onevision-qwen2-7b-ov \
     --version v1 \
     --data_path ./ \
     --data_path_eval /home/ids/liliu/data/ChatGarment/evaluations/garment_edit_eva.json \
@@ -28,8 +28,8 @@ deepspeed llava/train/multi-sketch/train_mem_garmentcode_outfit.py \
     --mm_use_im_patch_token False \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
-    --bf16 True \
-    --output_dir ./checkpoints/llava-v1.5-7b-task-lora \
+    --bf16 False \
+    --output_dir ./checkpoints/qwen2-7b-ov \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
@@ -43,10 +43,11 @@ deepspeed llava/train/multi-sketch/train_mem_garmentcode_outfit.py \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
-    --tf32 True \
+    --tf32 False \
     --model_max_length 3072 \
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
     --report_to wandb
+
 

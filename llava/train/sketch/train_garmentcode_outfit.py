@@ -57,7 +57,7 @@ from .dataset import LazySupervisedDataset, DataCollatorForSupervisedDataset, La
 from llava.train.sketch.args.argument import DataArguments, ModelArguments, TrainingArguments
 
 local_rank = None
-os.environ["MASTER_PORT"] = "23480"
+# os.environ["MASTER_PORT"] = "23480"
 
 def rank0_print(*args):
     if local_rank == 0:
@@ -344,7 +344,7 @@ def translate_args(model_args, data_args, training_args):
         no_eval=False,
         eval_only=False,
         vision_pretrained=None,
-        resume="/home/ids/liliu/projects/ChatGarment/runs/chatgarment_pre_trained/ckpt_model_epoch21_07-05_18_30",
+        resume="/home/ids/liliu/projects/ChatGarment/checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin",
         start_epoch=0,
         print_freq=1,
         gradient_checkpointing=training_args.gradient_checkpointing,
@@ -362,11 +362,11 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
     train_dataset = LazySupervisedDatasetCmb(tokenizer=tokenizer,
                                 data_path_list=data_path_list,
                                 data_args=data_args)
-    
-    eval_dataset = LazySupervisedDataset(tokenizer=tokenizer,
-                                data_path=data_args.data_path_eval,
-                                data_args=data_args,
-                                max_len=10)
+    eval_dataset = ''
+    # eval_dataset = LazySupervisedDataset(tokenizer=tokenizer,
+    #                             data_path=data_args.data_path_eval,
+    #                             data_args=data_args,
+    #                             max_len=10)
 
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
 
@@ -517,20 +517,20 @@ def train(attn_implementation=None):
 
     data_path_list = {   
         "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_restpose_img_v1.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v4.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_restpose_img_v1.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_img_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_img_v4.json',
         ],
         "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_singlegarment_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v4.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_v2.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_singlegarment_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_v4.json',
         ],
         "sewing_pattern_imgtext": [ # ['garment_id', 'sketch_num', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v3.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v4.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_singlegarment_v2.json'
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v2.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v3.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v4.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_singlegarment_v2.json'
         ]
     }
 
@@ -579,9 +579,9 @@ def train(attn_implementation=None):
     }
 
     
-
+    print("loading resume ", args.resume)
     if args.resume.endswith(".bin"):
-        print("Loading checkpoint from {}".format(args.resume))
+        # print("Loading checkpoint from {}".format(args.resume))
         state_dict = torch.load(args.resume, map_location="cpu")
         model.load_state_dict(state_dict, strict=True)
         model = model.bfloat16().cuda()

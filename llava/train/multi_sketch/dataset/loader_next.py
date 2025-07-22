@@ -202,10 +202,15 @@ class LazySupervisedDataset(Dataset):
             all_floats, all_floats_weight = generate_all_float_labels(sources[0]['all_floats'], indices)
         
         if 'sketch_path' in sources[0]:
-            breakpoint()
+            # breakpoint()
             # image_file = sources[0]['sketch_path']
-            sketch_num = sources[0]['sketch_num']
-            image_files = sources[0]['sketch_path'].split(',')
+            try:
+                sketch_num = sources[0]['sketch_num']
+                sketch_num = len(sources[0]['sketch_path'])
+            except:
+                print(sources[0].keys())
+                raise False
+            image_files = sources[0]['sketch_path']
             image_folder = self.data_args.image_folder
             processor = self.data_args.image_processor
 

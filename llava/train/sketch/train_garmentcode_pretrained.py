@@ -33,7 +33,6 @@ import tokenizers
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../.."))
 
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from torch.utils.data import Dataset
@@ -41,7 +40,6 @@ from torch.utils.data import Dataset
 from llava import conversation as conversation_lib
 from llava.model import *
 from llava.mm_utils import tokenizer_image_token
-from llava.utils import rank0_print
 import deepspeed
 from functools import partial
 from easydict import EasyDict as edict
@@ -55,12 +53,15 @@ import shutil
 from llava.json_fixer import repair_json
 import os
 import glob
-from llava.train.sketch.dataset.loader_next import LazySupervisedDataset, LazySupervisedDatasetCmb
-from llava.train.sketch.dataset.collator_next import DataCollatorForSupervisedDataset
+from .dataset import LazySupervisedDataset, DataCollatorForSupervisedDataset, LazySupervisedDatasetCmb
 from llava.train.sketch.args.argument import DataArguments, ModelArguments, TrainingArguments
 
-from llava.model.llava_next_builder import load_pretrained_model
+local_rank = None
+# os.environ["MASTER_PORT"] = "23480"
 
+def rank0_print(*args):
+    if local_rank == 0:
+        print(*args)
 
 
 from packaging import version
@@ -118,6 +119,7 @@ def get_mm_adapter_state_maybe_zero_3(named_params, keys_to_match):
     to_return = {k: t for k, t in named_params if any(key_match in k for key_match in keys_to_match)}
     to_return = {k: maybe_zero_3(v, ignore_status=True).cpu() for k, v in to_return.items()}
     return to_return
+
 
 
 def find_all_linear_names(model, lora_target_modules=['q_proj', 'v_proj']):
@@ -311,6 +313,7 @@ def train_epoch(
     return train_iter
 
 
+
 def translate_args(model_args, data_args, training_args):
     args = edict(
         local_rank=local_rank,
@@ -329,7 +332,7 @@ def translate_args(model_args, data_args, training_args):
         dataset=None,
         sample_rates=None,
         log_base_dir='./runs',
-        exp_name="chatgarment_multi_image",
+        exp_name="chatgarment_pre_trained",
         epochs=40,
         steps_per_epoch=500,
         batch_size=4,
@@ -341,7 +344,7 @@ def translate_args(model_args, data_args, training_args):
         no_eval=False,
         eval_only=False,
         vision_pretrained=None,
-        resume="",
+        resume="/home/ids/liliu/projects/ChatGarment/checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin",
         start_epoch=0,
         print_freq=1,
         gradient_checkpointing=training_args.gradient_checkpointing,
@@ -359,15 +362,16 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
     train_dataset = LazySupervisedDatasetCmb(tokenizer=tokenizer,
                                 data_path_list=data_path_list,
                                 data_args=data_args)
-    
-    eval_dataset = LazySupervisedDataset(tokenizer=tokenizer,
-                                data_path=data_args.data_path_eval,
-                                data_args=data_args,
-                                max_len=10)
+    eval_dataset = ''
+    # eval_dataset = LazySupervisedDataset(tokenizer=tokenizer,
+    #                             data_path=data_args.data_path_eval,
+    #                             data_args=data_args,
+    #                             max_len=10)
 
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
 
     return train_dataset, eval_dataset, data_collator
+
 
 
 def train(attn_implementation=None):
@@ -394,27 +398,15 @@ def train(attn_implementation=None):
 
     assert training_args.bits not in [4, 8]
     assert model_args.vision_tower is not None
-    assert 'mpt' not in model_args.model_name_or_path
+    assert 'mpt' not in model_args.tokenizer_name_or_path
 
-    # tokenizer = transformers.AutoTokenizer.from_pretrained(
-    #     model_args.model_name_or_path,
-    #     cache_dir=training_args.cache_dir,
-    #     model_max_length=training_args.model_max_length,
-    #     padding_side="right",
-    #     use_fast=False,
-    # )
-
-    pretrained = model_args.model_name_or_path
-    model_name = "llava_qwen"
-    device = "cuda"
-    device_map = "auto"
-    llava_model_args = {
-        "multimodal": True,
-        "attn_implementation": "sdpa",
-    }
-    tokenizer, model, image_processor, max_length = load_pretrained_model(pretrained, None, model_name, device_map=device_map, **llava_model_args)  # Add any other thing you want to pass in llava_model_args
-
-    breakpoint()
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        model_args.tokenizer_name_or_path,
+        cache_dir=training_args.cache_dir,
+        model_max_length=training_args.model_max_length,
+        padding_side="right",
+        use_fast=False,
+    )
 
     tokenizer.pad_token = tokenizer.unk_token
     tokenizer.add_tokens("[SEG]")
@@ -424,15 +416,14 @@ def train(attn_implementation=None):
     
     print('num_added_tokens', num_added_tokens, args.seg_token_idx)
 
-    # model = Multi_GarmentGPTFloat50ForCausalLM.from_pretrained(
-    #     model_args.model_name_or_path,
-    #     cache_dir=training_args.cache_dir,
-    #     attn_implementation=attn_implementation,
-    #     torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
-    #     low_cpu_mem_usage=False, # TODO:To be tested.
-    #     seg_token_idx=args.seg_token_idx,
-    #     **bnb_model_from_pretrained_args
-    # )
+    model = GarmentGPTFloat50ForCausalLM.from_pretrained(
+        model_args.model_name_or_path,
+        cache_dir=training_args.cache_dir,
+        attn_implementation=attn_implementation,
+        torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
+        seg_token_idx=args.seg_token_idx,
+        **bnb_model_from_pretrained_args
+    )
     
     model.config.eos_token_id = tokenizer.eos_token_id
     model.config.bos_token_id = tokenizer.bos_token_id
@@ -524,46 +515,25 @@ def train(attn_implementation=None):
     model.initialize_vision_tokenizer(model_args, tokenizer=tokenizer) ############### ?
 
     model.print_trainable_parameters()
-    # multi sketch path
-    data_root_path = '/home/sitian/Texture-Deform_2DSketchGarments/data'
+
     data_path_list = {   
         "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
-            os.path.join(data_root_path, 'sketches/data_restpose_img_v1.json'),
-            os.path.join(data_root_path, 'sketches/data_img_v2.json'),
-            os.path.join(data_root_path, 'sketches/data_img_v4.json'),
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_restpose_img_v1.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_img_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_img_v4.json',
         ],
         "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
-            os.path.join(data_root_path, 'sketches/data_detailtext_v2.json'),
-            os.path.join(data_root_path, 'sketches/data_detailtext_singlegarment_v2.json'),
-            os.path.join(data_root_path, 'sketches/data_detailtext_v4.json'),
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_v2.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_singlegarment_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_v4.json',
         ],
         "sewing_pattern_imgtext": [ # ['garment_id', 'sketch_num', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
-            os.path.join(data_root_path, 'sketches/data_detailtextimg_v2.json'),
-            os.path.join(data_root_path, 'sketches/data_detailtextimg_v3.json'),
-            os.path.join(data_root_path, 'sketches/data_detailtextimg_v4.json'),
-            os.path.join(data_root_path, 'sketches/data_detailtextimg_singlegarment_v2.json')
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v2.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v3.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v4.json',
+            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_singlegarment_v2.json'
         ]
     }
-
-    # single sketch path
-    # data_path_list = {   
-    #     "sewing_pattern_img": [ #['garment_id', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_restpose_img_v1.json',
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v2.json',
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v4.json',
-    #     ],
-    #     "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v2.json',
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_singlegarment_v2.json',
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v4.json',
-    #     ],
-    #     "sewing_pattern_imgtext": [ # ['garment_id', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v2.json',
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v3.json',
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v4.json',
-    #         '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_singlegarment_v2.json'
-    #     ]
-    # }
 
     train_dataset, val_dataset, collate_fn = make_supervised_data_module(tokenizer=tokenizer,
                                               data_args=data_args, data_path_list=data_path_list)
@@ -597,7 +567,6 @@ def train(attn_implementation=None):
         },
         "bf16": {
             "enabled": args.precision == "bf16",
-            # "enabled": True,
         },
         "gradient_clipping": 1.0,
         "zero_optimization": {
@@ -611,25 +580,43 @@ def train(attn_implementation=None):
     }
 
     
-
-    model_engine, _, train_loader, scheduler = deepspeed.initialize(
-        model=model,
-        model_parameters=model.parameters(),
-        training_data=train_dataset,
-        collate_fn=collate_fn,
-        config=ds_config,
-    )
-    load_path, client_state = model_engine.load_checkpoint(args.resume)
-    with open(os.path.join(args.resume, "latest"), "r") as f:
-        ckpt_dir = f.readlines()[0].strip()
-    args.start_epoch = (
-        int(ckpt_dir.replace("global_step", "")) // args.steps_per_epoch
-    )
-    print(
-        "resume training from {}, start from epoch {}".format(
-            args.resume, args.start_epoch
+    print("loading resume ", args.resume)
+    if args.resume.endswith(".bin"):
+        print("Loading checkpoint from {}".format(args.resume))
+        state_dict = torch.load(args.resume, map_location="cpu")
+        model.load_state_dict(state_dict, strict=True)
+        model = model.bfloat16().cuda()
+        device = model.device
+        model_engine, _, train_loader, scheduler = deepspeed.initialize(
+            model=model,
+            model_parameters=model.parameters(),
+            training_data=train_dataset,
+            collate_fn=collate_fn,
+            config=ds_config,
         )
-    )
+        print("resume training from {}, start from epoch {}".format(
+                    args.resume, args.start_epoch
+        ))
+    elif args.resume:
+
+        model_engine, _, train_loader, scheduler = deepspeed.initialize(
+            model=model,
+            model_parameters=model.parameters(),
+            training_data=train_dataset,
+            collate_fn=collate_fn,
+            config=ds_config,
+        )
+        load_path, client_state = model_engine.load_checkpoint(args.resume)
+        with open(os.path.join(args.resume, "latest"), "r") as f:
+            ckpt_dir = f.readlines()[0].strip()
+        args.start_epoch = (
+            int(ckpt_dir.replace("global_step", "")) // args.steps_per_epoch
+        )
+        print(
+            "resume training from {}, start from epoch {}".format(
+                args.resume, args.start_epoch
+            )
+        )
 
     train_iter = iter(train_loader)
     best_score, cur_ciou = 0.0, 0.0

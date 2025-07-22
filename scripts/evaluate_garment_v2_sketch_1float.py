@@ -42,6 +42,8 @@ import re
 os.environ["MASTER_PORT"] = "23499"
 
 
+
+
 def find_all_linear_names(model, lora_target_modules=['q_proj', 'v_proj']):
     cls = torch.nn.Linear
     lora_module_names = set()
@@ -131,7 +133,7 @@ def translate_args(model_args, data_args, training_args):
         dataset=None,
         sample_rates=None,
         log_base_dir='./runs',
-        exp_name="try_lr1e_4_generator_wildimg",
+        exp_name="try",
         epochs=40,
         steps_per_epoch=500,
         batch_size=4,
@@ -157,12 +159,14 @@ def translate_args(model_args, data_args, training_args):
 
     
 def main(args):
+    
     attn_implementation = 'flash_attention_2'
     global local_rank
 
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
     local_rank = training_args.local_rank
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
 
@@ -289,25 +293,91 @@ def main(args):
         data_args=data_args,
     )
 
+    ds_config = {
+        "train_micro_batch_size_per_gpu": args.batch_size,
+        "gradient_accumulation_steps": args.grad_accumulation_steps,
+        "optimizer": {
+            "type": "AdamW",
+            "params": {
+                "lr": args.lr,
+                "weight_decay": 0.0,
+                "betas": (args.beta1, args.beta2),
+            },
+        },
+        "scheduler": {
+            "type": "WarmupDecayLR",
+            "params": {
+                "total_num_steps": args.epochs * args.steps_per_epoch,
+                "warmup_min_lr": 0,
+                "warmup_max_lr": args.lr,
+                "warmup_num_steps": 100,
+                "warmup_type": "linear",
+            },
+        },
+        "fp16": {
+            "enabled": args.precision == "fp16",
+        },
+        "bf16": {
+            "enabled": args.precision == "bf16",
+        },
+        "gradient_clipping": 1.0,
+        "zero_optimization": {
+            "stage": 2,
+            "contiguous_gradients": True,
+            "overlap_comm": True,
+            "reduce_scatter": True,
+            "reduce_bucket_size": 5e8,
+            "allgather_bucket_size": 5e8,
+        },
+    }
+
     ########################################################################################
     # resume_path = 'checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin'
-    resume_path = '/home/ids/liliu/projects/ChatGarment/runs/chatgarment_pre_trained/ckpt_model_epoch32_07-07_07_03/model_fp32.pt'
-
-    state_dict = torch.load(resume_path, map_location="cpu")
-    model.load_state_dict(state_dict, strict=True)
-    model = model.bfloat16().cuda()
-    device = model.device
-        
-    if data_args.data_path_eval[-1] == '/':
-        data_args.data_path_eval = data_args.data_path_eval[:-1]
-    if data_args.data_path_eval.split('/')[-1] == 'img' or data_args.data_path_eval.split('/')[-1] == 'imgs':
-        dataset_name = data_args.data_path_eval.split('/')[-2]
+    # resume_path = '/home/ids/liliu/projects/ChatGarment/runs/chatgarment_pre_trained_old/ckpt_model_epoch29_07-07_00_38/global_step15000/mp_rank_00_model_states.pt'
+    # resume_path = '/home/ids/liliu/projects/ChatGarment/checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin'
+    resume_path = model_args.resume_path
+    print("loading reumse_path: ", resume_path)
+    if resume_path.endswith('.bin'):
+        state_dict = torch.load(resume_path, map_location="cuda")
+        model.load_state_dict(state_dict, strict=True)
+    # elif resume_path.endswith('.pt'):
+    #     state_dict = torch.load(resume_path, map_location="cuda")
+    #     state_dict = state_dict['module']
+    #     print(dict(model.named_parameters()).keys())
+    #     print(model.get_vision_tower())
+    #     try:
+    #         model.load_state_dict(state_dict, strict=True) #BUG: size mismatch idk
+    #     except:
+    #         raise False
     else:
-        dataset_name = data_args.data_path_eval.split('/')[-1]
+        print("Loading from deepspeed checkpoint...")
+        model_engine, _, _, _ = deepspeed.initialize(
+            model=model,
+            model_parameters=model.parameters(),
+            config = ds_config
+            # checkpoint=resume_path
+        )
+        # print("loading checkpoint")
+        load_path, client_state = model_engine.load_checkpoint(resume_path)
+        # print("assigning model")
+        model = model_engine.module
+        
+    model = model.bfloat16().cuda()
+    print("model cuda")
+    device = model.device
+    print("model device")
+    model.eval()
+        
+    # if data_args.data_path_eval[-1] == '/':
+    #     data_args.data_path_eval = data_args.data_path_eval[:-1]
+    # if data_args.data_path_eval.split('/')[-1] == 'img' or data_args.data_path_eval.split('/')[-1] == 'imgs':
+    #     dataset_name = data_args.data_path_eval.split('/')[-2]
+    # else:
+    #     dataset_name = data_args.data_path_eval.split('/')[-1]
     # Note: dataset_name
     dataset_name = "close_eva_imgs"
     
-    args.exp_name = resume_path.split('/')[-2]
+    args.exp_name = resume_path.split('/')[-1]
     parent_folder = os.path.join(args.log_base_dir, args.exp_name, f'{dataset_name}_img_recon')
     if not os.path.exists(parent_folder):
         os.makedirs(parent_folder)
@@ -328,6 +398,8 @@ def main(args):
         image_path = data_item['image_path']
         garment_id = image_path.split('/')[-1]
         garment_id = garment_id.split('.')[0]
+        if not garment_id in ["10035_3891"]:
+            continue
         saved_dir = os.path.join(parent_folder, 'vis_new', f'valid_garment_{garment_id}')
         # if there is something inside saved_dir continue
         if os.path.exists(saved_dir) and len(os.listdir(saved_dir)) > 0:
@@ -376,7 +448,8 @@ def main(args):
 
             output_ids = output_ids[0, 1:]
             text_output = tokenizer.decode(output_ids, skip_special_tokens=False).strip().replace("</s>", "")
-
+            # print("--------------text_output1--------------")
+            # print(text_output)
             if k == 0:
                 continue
             
@@ -391,6 +464,8 @@ def main(args):
                 garment_id = image_path.split('/')[-1]
                 garment_id = garment_id.split('.')[0]
                 json_output = repair_json(text_output, return_objects=True)
+                # print("--------------text_output2--------------")
+                # print(json_output)
 
                 saved_dir = os.path.join(parent_folder, 'vis_new', f'valid_garment_{garment_id}')
 
@@ -408,11 +483,13 @@ def main(args):
                 output_dir = saved_dir
                 all_output_dir.append(output_dir)
                 shutil.copy(image_path, os.path.join(output_dir, f'gt_image.png'))
+                # print("-------------------json_output-------------------")
+                # print(json_output)
                 try:
                     all_json_spec_files = run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir)
                 except:
                     print(f"Error processing garment {garment_id}, skipping...")
-                    print(json_output)
+                    # print(json_output)
                     continue
 
     saved_json_Path = os.path.join(parent_folder, 'vis_new', 'all_json_spec_files.json')

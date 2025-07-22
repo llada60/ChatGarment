@@ -1,8 +1,8 @@
 #!/bin/bash
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-12.1/lib64
-export PATH=$PATH:/usr/local/cuda-12.1/bin
-export CUDA_HOME=/usr/local/cuda-12.1
+export CUDA_HOME=/usr/local/cuda-12.5
+export PATH=$CUDA_HOME/bin:$PATH:/bin:/usr/bin
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 
 # export CPATH=/is/software/nvidia/cudnn-8.4.1-cu11.6/include
 # export C_INCLUDE_PATH=/is/software/nvidia/cudnn-8.4.1-cu11.6/include
@@ -14,11 +14,12 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 
 deepspeed scripts/evaluate_garment_v2_sketch_1float.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
-    --deepspeed ./scripts/zero2.json \
+    --deepspeed ./scripts/zero3.json \
     --model_name_or_path /home/ids/liliu/data/llava/llava-v1.5-7b \
     --version v1 \
     --data_path ./ \
     --data_path_eval $1 \
+    --resume_path $2 \
     --image_folder ./ \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \
