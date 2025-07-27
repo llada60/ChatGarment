@@ -66,6 +66,8 @@ from llava.model.llava_next_builder import load_pretrained_model
 from packaging import version
 IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= version.parse('0.14')
 
+
+
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
     from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
@@ -524,23 +526,23 @@ def train(attn_implementation=None):
 
     model.print_trainable_parameters()
     # multi sketch path
-    data_root_path = '/home/ids/liliu/data/ChatGarment/training/synthetic'
+    data_root_path = '/home/ids/liliu/data/ChatGarment/training/synthetic/new_sketches'
     data_path_list = {   
         "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
-            # os.path.join(data_root_path, 'sketches/data_restpose_img_v1.json'),
-            # os.path.join(data_root_path, 'sketches/data_img_v2.json'),
-            os.path.join(data_root_path, 'sketches/data_img_v4.json'),
+            # os.path.join(data_root_path, 'data_restpose_img_v1.json'),
+            # os.path.join(data_root_path, 'data_img_v2.json'),
+            os.path.join(data_root_path, 'data_img_v4.json'),
         ],
         "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
-        #     os.path.join(data_root_path, 'sketches/data_detailtext_v2.json'),
-        #     os.path.join(data_root_path, 'sketches/data_detailtext_singlegarment_v2.json'),
-            os.path.join(data_root_path, 'sketches/data_detailtext_v4.json'),
+        #     os.path.join(data_root_path, 'data_detailtext_v2.json'),
+        #     os.path.join(data_root_path, 'data_detailtext_singlegarment_v2.json'),
+            os.path.join(data_root_path, 'data_detailtext_v4.json'),
         ],
         "sewing_pattern_imgtext": [ # ['garment_id', 'sketch_num', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
-        #     os.path.join(data_root_path, 'sketches/data_detailtextimg_v2.json'),
-        #     os.path.join(data_root_path, 'sketches/data_detailtextimg_v3.json'),
-            os.path.join(data_root_path, 'sketches/data_detailtextimg_v4.json'),
-        #     os.path.join(data_root_path, 'sketches/data_detailtextimg_singlegarment_v2.json')
+        #     os.path.join(data_root_path, 'data_detailtextimg_v2.json'),
+        #     os.path.join(data_root_path, 'data_detailtextimg_v3.json'),
+            os.path.join(data_root_path, 'data_detailtextimg_v4.json'),
+        #     os.path.join(data_root_path, 'data_detailtextimg_singlegarment_v2.json')
         ]
     }
 

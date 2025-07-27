@@ -123,22 +123,26 @@ class LazySupervisedDataset(Dataset):
         self.data_args = data_args
         self.random_imgaug = random_imgaug
 
+        try:
+            if not 'sample_prob' in list_data_dict[0]:
+                self.probs = np.ones(len(list_data_dict))
 
-        if not 'sample_prob' in list_data_dict[0]:
-            self.probs = np.ones(len(list_data_dict))
+            else:
+                self.probs = [
+                    item['sample_prob'] for item in list_data_dict
+                ]
+                for i in range(len(self.probs)):
+                    if self.probs[i] > 0.15 and self.probs[i] < 0.35:
+                        self.probs[i] = 0.05
+                    
+                    elif self.probs[i] < 0.15:
+                        self.probs[i] = 0.02
 
-        else:
-            self.probs = [
-                item['sample_prob'] for item in list_data_dict
-            ]
-            for i in range(len(self.probs)):
-                if self.probs[i] > 0.15 and self.probs[i] < 0.35:
-                    self.probs[i] = 0.05
-                
-                elif self.probs[i] < 0.15:
-                    self.probs[i] = 0.02
-
-            self.probs = np.array(self.probs)
+                self.probs = np.array(self.probs)
+        except:
+            print("data path ", data_path)
+            print(type(list_data_dict))
+            print(len(list_data_dict))
 
         self.probs = self.probs / self.probs.sum()
         self.cumsum = np.cumsum(self.probs)
@@ -201,7 +205,7 @@ class LazySupervisedDataset(Dataset):
             has_floats = True
             all_floats, all_floats_weight = generate_all_float_labels(sources[0]['all_floats'], indices)
         
-        if 'sketch_path' in sources[0]:
+        if 'sketch_num' in sources[0]:
             # breakpoint()
             # image_file = sources[0]['sketch_path']
             try:
