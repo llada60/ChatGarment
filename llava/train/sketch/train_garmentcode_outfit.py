@@ -517,20 +517,20 @@ def train(attn_implementation=None):
 
     data_path_list = {   
         "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
-            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_restpose_img_v1.json',
-            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_img_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_img_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_restpose_img_v1.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_img_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_img_v4.json',
         ],
         "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
-            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_v2.json',
-            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_singlegarment_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtext_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtext_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtext_singlegarment_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtext_v4.json',
         ],
         "sewing_pattern_imgtext": [ # ['garment_id', 'sketch_num', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
-            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v2.json',
-            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v3.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_v4.json',
-            # '/home/ids/liliu/data/ChatGarment/training/synthetic/single_sketch/data_detailtextimg_singlegarment_v2.json'
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_v3.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_singlegarment_v2.json'
         ]
     }
 
