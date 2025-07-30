@@ -193,7 +193,10 @@ class LazySupervisedDataset(Dataset):
         if '<image>' not in prompt:
             sources["conversations"][0]["value"] = '<image>\n' + prompt
             self.list_data_dict[i]['sketch_path'] = "docs/images/black_img.jpg"
-            sources["sketch_path"] = "docs/images/black_img.jpg"
+            sources["sketch_path"] = []
+            for _ in range(4):
+                sources["sketch_path"].append("docs/images/black_img.jpg")
+            sources['sketch_num'] = 4
             rand_flag = False
         
         if isinstance(i, int):
@@ -206,12 +209,11 @@ class LazySupervisedDataset(Dataset):
             all_floats, all_floats_weight = generate_all_float_labels(sources[0]['all_floats'], indices)
         
         if 'sketch_num' in sources[0]:
-            # breakpoint()
-            # image_file = sources[0]['sketch_path']
             try:
                 sketch_num = sources[0]['sketch_num']
-                sketch_num = len(sources[0]['sketch_path'])
+                # sketch_num = len(sources[0]['sketch_path'])
             except:
+                print("error in sketch_num")
                 print(sources[0].keys())
                 raise False
             image_files = sources[0]['sketch_path']
@@ -263,10 +265,9 @@ class LazySupervisedDataset(Dataset):
         if isinstance(i, int):
             data_dict = dict(input_ids=data_dict["input_ids"][0],
                              labels=data_dict["labels"][0])
-
         # image exist in the data
         # print('sketch_path', image.shape) # image torch.Size([3, 336, 336])
-        if 'sketch_path' in self.list_data_dict[i]:
+        if 'sketch_num' in self.list_data_dict[i]:
             # data_dict['image'] = image
             assert sketch_num == len(image_files) 
             assert sketch_num == len(images)
@@ -279,8 +280,8 @@ class LazySupervisedDataset(Dataset):
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
             crop_size = self.data_args.image_processor.crop_size
-            data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
-            data_dict['image_path'] = ''
+            data_dict['images'] = torch.zeros(4, 3, crop_size['height'], crop_size['width'])
+            data_dict['image_paths'] = ''
         
         if has_floats:
             data_dict['all_floats'] = torch.tensor(all_floats).float().reshape(-1)

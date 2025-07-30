@@ -35,23 +35,17 @@ class DataCollatorForSupervisedDataset(object):
             float_labels=all_floats,
             float_weight=float_weight
         )
+        # if input_ids is None:
+        #     print(image_paths)
+        #     raise False
 
-        # if 'image' in instances[0]:
-        #     images = [instance['image'] for instance in instances]
-        #     if all(x is not None and x.shape == images[0].shape for x in images):
-        #         batch['images'] = torch.stack(images)
-        #     else:
-        #         batch['images'] = images
-        try:
-            if 'sketch_path' in instances[0]:
-                all_images = [instance['sketch_path'] for instance in instances]  # [N, 4, 3, H, W]
-                
-                if all(x is not None and x.shape == all_images[0].shape for x in all_images):
-                    batch['sketch_path'] = torch.stack(all_images)  # Stack N instances of [4, 3, H, W] into [N, 4, 3, H, W]
-                else:
-                    batch['sketch_path'] = all_images  
-        except:
-            print("instances keys ", instances[0].keys())
-            raise False
+        if 'images' in instances[0]:
+            all_images = [instance['images'] for instance in instances]  # [N, 4, 3, H, W]
+            
+            if all(x is not None and x.shape == all_images[0].shape for x in all_images):
+                batch['images'] = torch.stack(all_images)  # Stack N instances of [4, 3, H, W] into [N, 4, 3, H, W]
+            else:
+                batch['images'] = all_images  
+
 
         return batch
