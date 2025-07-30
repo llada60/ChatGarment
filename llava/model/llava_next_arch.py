@@ -15,20 +15,18 @@
 
 from abc import ABC, abstractmethod
 
-import math
-import re
-import time
 import torch
 import torch.nn as nn
-from .multimodal_encoder.builder import build_vision_tower
-from .multimodal_resampler.builder import build_vision_resampler
-from .multimodal_projector.builder import build_vision_projector
+
+# from .multimodal_encoder.builder import build_vision_tower
+# from .multimodal_projector.builder import build_vision_projector
+
+from .multimodal_encoder.builder_next import build_vision_tower
+from .multimodal_projector.builder_next import build_vision_projector
 
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 
 from llava.mm_utils import get_anyres_image_grid_shape
-from llava.utils import rank0_print
-import random
 
 
 class LlavaMetaModel:
@@ -37,16 +35,16 @@ class LlavaMetaModel:
         super(LlavaMetaModel, self).__init__(config)
 
         if hasattr(config, "mm_vision_tower"):
-            delay_load = getattr(config, "delay_load", False)
-            self.vision_tower = build_vision_tower(config, delay_load=delay_load)
-            self.vision_resampler = build_vision_resampler(config, vision_tower=self.vision_tower)
-            self.mm_projector = build_vision_projector(config, vision_cfg=self.vision_tower.config)
+            self.vision_tower = build_vision_tower(config, delay_load=True)
+            self.mm_projector = build_vision_projector(config)
 
-            if "unpad" in getattr(config, "mm_patch_merge_type", ""):
-                self.image_newline = nn.Parameter(torch.empty(config.hidden_size, dtype=self.dtype))
+            if 'unpad' in getattr(config, 'mm_patch_merge_type', ''):
+                self.image_newline = nn.Parameter(
+                    torch.empty(config.hidden_size, dtype=self.dtype)
+                )
 
     def get_vision_tower(self):
-        vision_tower = getattr(self, "vision_tower", None)
+        vision_tower = getattr(self, 'vision_tower', None)
         if type(vision_tower) is list:
             vision_tower = vision_tower[0]
         return vision_tower
@@ -59,69 +57,47 @@ class LlavaMetaModel:
         mm_patch_merge_type = model_args.mm_patch_merge_type
 
         self.config.mm_vision_tower = vision_tower
-        self.config.vision_tower_pretrained = getattr(model_args, "vision_tower_pretrained", "")
 
         if self.get_vision_tower() is None:
             vision_tower = build_vision_tower(model_args)
-            vision_resampler = build_vision_resampler(model_args, vision_tower=vision_tower)
-            for k, v in vision_resampler.config.items():
-                setattr(self.config, k, v)
 
             if fsdp is not None and len(fsdp) > 0:
                 self.vision_tower = [vision_tower]
-                self.vision_resampler = [vision_resampler]
             else:
                 self.vision_tower = vision_tower
-                self.vision_resampler = vision_resampler
         else:
             if fsdp is not None and len(fsdp) > 0:
-                vision_resampler = self.vision_resampler[0]
                 vision_tower = self.vision_tower[0]
             else:
-                vision_resampler = self.vision_resampler
                 vision_tower = self.vision_tower
             vision_tower.load_model()
 
-            # In case it is frozen by LoRA
-            for p in self.vision_resampler.parameters():
-                p.requires_grad = True
-
         self.config.use_mm_proj = True
-        self.config.mm_projector_type = getattr(model_args, "mm_projector_type", "linear")
-        self.config.mm_hidden_size = getattr(vision_resampler, "hidden_size", vision_tower.hidden_size)
+        self.config.mm_projector_type = getattr(model_args, 'mm_projector_type', 'linear')
+        self.config.mm_hidden_size = vision_tower.hidden_size
         self.config.mm_vision_select_layer = mm_vision_select_layer
         self.config.mm_vision_select_feature = mm_vision_select_feature
         self.config.mm_patch_merge_type = mm_patch_merge_type
 
-        
-        if not hasattr(self.config, 'add_faster_video'):
-            if model_args.add_faster_video:
+        if getattr(self, 'mm_projector', None) is None:
+            self.mm_projector = build_vision_projector(self.config)
+
+            if 'unpad' in mm_patch_merge_type:
                 embed_std = 1 / torch.sqrt(torch.tensor(self.config.hidden_size, dtype=self.dtype))
-                self.faster_token = nn.Parameter(
+                self.image_newline = nn.Parameter(
                     torch.randn(self.config.hidden_size, dtype=self.dtype) * embed_std
                 )
-
-        if getattr(self, "mm_projector", None) is None:
-            self.mm_projector = build_vision_projector(self.config, vision_cfg=vision_tower.config)
-
-            if "unpad" in mm_patch_merge_type:
-                embed_std = 1 / torch.sqrt(torch.tensor(self.config.hidden_size, dtype=self.dtype))
-                self.image_newline = nn.Parameter(torch.randn(self.config.hidden_size, dtype=self.dtype) * embed_std)
         else:
             # In case it is frozen by LoRA
             for p in self.mm_projector.parameters():
                 p.requires_grad = True
 
         if pretrain_mm_mlp_adapter is not None:
-            mm_projector_weights = torch.load(pretrain_mm_mlp_adapter, map_location="cpu")
-
+            mm_projector_weights = torch.load(pretrain_mm_mlp_adapter, map_location='cpu')
             def get_w(weights, keyword):
-                return {k.split(keyword + ".")[1]: v for k, v in weights.items() if keyword in k}
+                return {k.split(keyword + '.')[1]: v for k, v in weights.items() if keyword in k}
 
-            incompatible_keys = self.mm_projector.load_state_dict(get_w(mm_projector_weights, "mm_projector"))
-            rank0_print(f"Loaded mm projector weights from {pretrain_mm_mlp_adapter}. Incompatible keys: {incompatible_keys}")
-            incompatible_keys = self.vision_resampler.load_state_dict(get_w(mm_projector_weights, "vision_resampler"), strict=False)
-            rank0_print(f"Loaded vision resampler weights from {pretrain_mm_mlp_adapter}. Incompatible keys: {incompatible_keys}")
+            self.mm_projector.load_state_dict(get_w(mm_projector_weights, 'mm_projector'))
 
 
 def unpad_image(tensor, original_size):
@@ -130,7 +106,7 @@ def unpad_image(tensor, original_size):
 
     Args:
     tensor (torch.Tensor): The image tensor, assumed to be in CxHxW format.
-    original_size (tuple): The original size of the image (height, width).
+    original_size (tuple): The original size of PIL image (width, height).
 
     Returns:
     torch.Tensor: The unpadded image tensor.
@@ -138,23 +114,19 @@ def unpad_image(tensor, original_size):
     original_width, original_height = original_size
     current_height, current_width = tensor.shape[1:]
 
-    # Compute aspect ratios
     original_aspect_ratio = original_width / original_height
     current_aspect_ratio = current_width / current_height
 
-    # Determine padding size and direction
     if original_aspect_ratio > current_aspect_ratio:
-        # Padding was added to the height
         scale_factor = current_width / original_width
         new_height = int(original_height * scale_factor)
         padding = (current_height - new_height) // 2
-        unpadded_tensor = tensor[:, padding : current_height - padding, :]
+        unpadded_tensor = tensor[:, padding:current_height - padding, :]
     else:
-        # Padding was added to the width
         scale_factor = current_height / original_height
         new_width = int(original_width * scale_factor)
         padding = (current_width - new_width) // 2
-        unpadded_tensor = tensor[:, :, padding : current_width - padding]
+        unpadded_tensor = tensor[:, :, padding:current_width - padding]
 
     return unpadded_tensor
 
@@ -168,87 +140,12 @@ class LlavaMetaForCausalLM(ABC):
     def get_vision_tower(self):
         return self.get_model().get_vision_tower()
 
-    def get_2dPool(self, image_feature, stride=2):
-        height = width = self.get_vision_tower().num_patches_per_side
-        num_frames, num_tokens, num_dim = image_feature.shape
-        image_feature = image_feature.view(num_frames, height, width, -1)
-        image_feature = image_feature.permute(0, 3, 1, 2).contiguous()
-        # image_feature = nn.functional.max_pool2d(image_feature, self.config.mm_spatial_pool_stride)
-        if self.config.mm_spatial_pool_mode == "average":
-            image_feature = nn.functional.avg_pool2d(image_feature, stride)
-        elif self.config.mm_spatial_pool_mode == "max":
-            image_feature = nn.functional.max_pool2d(image_feature, stride)
-        elif self.config.mm_spatial_pool_mode == "bilinear":
-            height, width = image_feature.shape[2:]
-            scaled_shape = [math.ceil(height / stride), math.ceil(width / stride)]
-            image_feature = nn.functional.interpolate(image_feature, size=scaled_shape, mode='bilinear')
-
-        else:
-            raise ValueError(f"Unexpected mm_spatial_pool_mode: {self.config.mm_spatial_pool_mode}")
-        image_feature = image_feature.permute(0, 2, 3, 1)
-        image_feature = image_feature.view(num_frames, -1, num_dim)
-        return image_feature
-
     def encode_images(self, images):
         image_features = self.get_model().get_vision_tower()(images)
-        # image_features = self.get_model().vision_resampler(image_features, images=images)
         image_features = self.get_model().mm_projector(image_features)
         return image_features
-    
-    def encode_multimodals(self, videos_or_images, video_idx_in_batch, split_sizes=None):
-        videos_or_images_features = self.get_model().get_vision_tower()(videos_or_images)
-        per_videos_or_images_features = torch.split(videos_or_images_features, split_sizes, dim=0)  # tuple, (dim_1, 576, 4096)
-        all_videos_or_images_features = []
-        all_faster_video_features = []
-        cur_mm_spatial_pool_stride = self.config.mm_spatial_pool_stride
 
-        for idx, feat in enumerate(per_videos_or_images_features):
-            
-            feat = self.get_model().mm_projector(feat)
-            faster_video_feature = 0
-            slower_img_feat = 0
-            if idx in video_idx_in_batch and cur_mm_spatial_pool_stride > 1:
-                slower_img_feat = self.get_2dPool(feat,cur_mm_spatial_pool_stride)
-                if self.config.add_faster_video:
-                    cur_mm_spatial_pool_stride = cur_mm_spatial_pool_stride * 2
-                    faster_video_feature = self.get_2dPool(feat,cur_mm_spatial_pool_stride)
-            if slower_img_feat is not 0:
-                all_videos_or_images_features.append(slower_img_feat)
-            else:
-                all_videos_or_images_features.append(feat)
-            all_faster_video_features.append(faster_video_feature)
-        return all_videos_or_images_features,all_faster_video_features
-
-    def add_token_per_grid(self, image_feature):
-        resize_h = int(math.sqrt(image_feature.shape[1]))
-        num_frames = image_feature.shape[0]
-        feature_dim = image_feature.shape[-1]
-
-        image_feature = image_feature.view(num_frames, 1, resize_h, resize_h, -1)
-        image_feature = image_feature.permute(4, 0, 2, 1, 3).contiguous()
-        image_feature = image_feature.flatten(1, 2).flatten(2, 3)
-        image_feature = torch.cat((image_feature, self.model.image_newline[:, None, None].expand(*image_feature.shape[:-1], 1).to(image_feature.device)), dim=-1)
-        if getattr(self.config, "add_faster_video", False):
-            # import pdb; pdb.set_trace()
-            # (3584, 832, 14) -> (3584, 64, 13, 14)
-            image_feature = image_feature.view(feature_dim, num_frames,resize_h, -1)
-            #  (3584, 64, 13, 14) -> (64, 13, 14, 3584)
-            image_feature = image_feature.permute(1, 2, 3, 0).contiguous()
-            # (64, 13, 14, 3584) -> (64, 13*14, 3584)
-            image_feature = image_feature.flatten(1, 2)
-            # import pdb; pdb.set_trace()
-            return image_feature
-        # import pdb; pdb.set_trace()
-        image_feature = image_feature.flatten(1, 2).transpose(0, 1)
-        return image_feature
-
-    def add_token_per_frame(self, image_feature):
-        image_feature = image_feature.permute(2, 0, 1).contiguous()
-        image_feature =  torch.cat((image_feature, self.model.image_newline[:, None, None].expand(*image_feature.shape[:-1], 1).to(image_feature.device)), dim=-1)
-        image_feature = image_feature.permute(1, 2, 0).contiguous()
-        return image_feature
-
-    def Nprepare_inputs_labels_for_multimodal(self, input_ids, position_ids, attention_mask, past_key_values, labels, images, modalities=["image"], image_sizes=None):
+    def prepare_inputs_labels_for_multimodal(self, input_ids, position_ids, attention_mask, past_key_values, labels, images, modalities=["image"], image_sizes=None):
         vision_tower = self.get_vision_tower()
         # rank_print(modalities)
         if vision_tower is None or images is None or input_ids.shape[1] == 1:
@@ -567,8 +464,10 @@ class LlavaMetaForCausalLM(ABC):
                 input_embeddings = self.get_input_embeddings().weight.data
                 output_embeddings = self.get_output_embeddings().weight.data
 
-                input_embeddings_avg = input_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
-                output_embeddings_avg = output_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
+                input_embeddings_avg = input_embeddings[:-num_new_tokens].mean(
+                    dim=0, keepdim=True)
+                output_embeddings_avg = output_embeddings[:-num_new_tokens].mean(
+                    dim=0, keepdim=True)
 
                 input_embeddings[-num_new_tokens:] = input_embeddings_avg
                 output_embeddings[-num_new_tokens:] = output_embeddings_avg
@@ -580,8 +479,8 @@ class LlavaMetaForCausalLM(ABC):
                     p.requires_grad = False
 
             if model_args.pretrain_mm_mlp_adapter:
-                mm_projector_weights = torch.load(model_args.pretrain_mm_mlp_adapter, map_location="cpu")
-                embed_tokens_weight = mm_projector_weights["model.embed_tokens.weight"]
+                mm_projector_weights = torch.load(model_args.pretrain_mm_mlp_adapter, map_location='cpu')
+                embed_tokens_weight = mm_projector_weights['model.embed_tokens.weight']
                 assert num_new_tokens == 2
                 if input_embeddings.shape == embed_tokens_weight.shape:
                     input_embeddings[-num_new_tokens:] = embed_tokens_weight[-num_new_tokens:]

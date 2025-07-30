@@ -57,7 +57,11 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             )
         if "lora" in model_name.lower() and model_base is not None:
             lora_cfg_pretrained = AutoConfig.from_pretrained(model_path)
-            tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
+            # tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
+            # tokenizer.add_tokens("[SEG]")
+            # num_added_tokens = tokenizer.add_tokens("[SEG]")
+            # kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
+            # print('num_added_tokens', num_added_tokens, args.seg_token_idx)
             rank0_print("Loading LLaVA from base model...")
             if "mixtral" in model_name.lower():
                 from llava.model.language_model.llava_mixtral import LlavaMixtralConfig
@@ -83,7 +87,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 lora_cfg_pretrained = LlavaConfig.from_pretrained(model_path)
                 tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
                 model = LlavaLlamaForCausalLM.from_pretrained(model_base, low_cpu_mem_usage=True, config=lora_cfg_pretrained, attn_implementation=attn_implementation, **kwargs)
-
+            
             token_num, tokem_dim = model.lm_head.out_features, model.lm_head.in_features
             if model.lm_head.weight.shape[0] != token_num:
                 model.lm_head.weight = torch.nn.Parameter(torch.empty(token_num, tokem_dim, device=model.device, dtype=model.dtype))
@@ -115,6 +119,11 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             rank0_print("Model is loaded...")
         elif model_base is not None:  # this may be mm projector only, loading projector with preset language mdoel
             rank0_print(f"Loading LLaVA from base model {model_base}...")
+            # tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+            # tokenizer.add_tokens("[SEG]")
+            # num_added_tokens = tokenizer.add_tokens("[SEG]")
+            # kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
+            # print('num_added_tokens', num_added_tokens, args.seg_token_idx)
             if "mixtral" in model_name.lower():
                 tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
                 cfg_pretrained = AutoConfig.from_pretrained(model_path)
@@ -157,10 +166,15 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             model.load_state_dict(mm_projector_weights, strict=False)
         else:
             rank0_print(f"Loaded LLaVA model: {model_path}")
+            tokenizer = AutoTokenizer.from_pretrained(model_path)
+            tokenizer.add_tokens("[SEG]")
+            num_added_tokens = tokenizer.add_tokens("[SEG]")
+            kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
+            # print('num_added_tokens', num_added_tokens, args.seg_token_idx)
             if "mixtral" in model_name.lower():
                 from llava.model.language_model.llava_mixtral import LlavaMixtralConfig
 
-                tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+                # tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                 if customized_config is None:
                     llava_cfg = LlavaMixtralConfig.from_pretrained(model_path)
                 else:
@@ -171,11 +185,11 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                     for k, v in overwrite_config.items():
                         setattr(llava_cfg, k, v)
 
-                tokenizer = AutoTokenizer.from_pretrained(model_path)
+                # tokenizer = AutoTokenizer.from_pretrained(model_path)
                 model = LlavaMixtralForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
 
             elif "mistral" in model_name.lower() or "zephyr" in model_name.lower():
-                tokenizer = AutoTokenizer.from_pretrained(model_path)
+                # tokenizer = AutoTokenizer.from_pretrained(model_path)
                 model = LlavaMistralForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
             elif (
                 "wizardlm-2" in model_name.lower()
@@ -188,7 +202,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             ):
                 from llava.model.language_model.llava_llama import LlavaConfig
 
-                tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+                # tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                 if customized_config is None:
                     llava_cfg = LlavaConfig.from_pretrained(model_path)
                     if "v1.5" in model_name.lower():
@@ -204,7 +218,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 model = LlavaLlamaForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
 
             elif "qwen" in model_name.lower() or "quyen" in model_name.lower():
-                tokenizer = AutoTokenizer.from_pretrained(model_path)
+                # tokenizer = AutoTokenizer.from_pretrained(model_path)
                 if "moe" in model_name.lower() or "A14B" in model_name.lower():
                     from llava.model.language_model.llava_qwen_moe import LlavaQwenMoeConfig
                     if overwrite_config is not None:
@@ -228,14 +242,14 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                         model = LlavaQwenForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
 
             elif "gemma" in model_name.lower():
-                tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+                # tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                 cfg_pretrained = AutoConfig.from_pretrained(model_path)
                 model = LlavaGemmaForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, config=cfg_pretrained, attn_implementation=attn_implementation, **kwargs)
             else:
                 try:
                     from llava.model.language_model.llava_llama import LlavaConfig
 
-                    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+                    # tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                     if customized_config is None:
                         llava_cfg = LlavaConfig.from_pretrained(model_path)
                         if "v1.5" in model_path.lower():
@@ -257,7 +271,12 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             # PEFT model
             from peft import PeftModel
 
-            tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
+            # tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
+            tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+            # tokenizer.add_tokens("[SEG]")
+            # num_added_tokens = tokenizer.add_tokens("[SEG]")
+            # kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
+            # print('num_added_tokens', num_added_tokens, args.seg_token_idx)
             model = AutoModelForCausalLM.from_pretrained(model_base, torch_dtype=torch.float16, low_cpu_mem_usage=True, device_map="auto")
             print(f"Loading LoRA weights from {model_path}")
             model = PeftModel.from_pretrained(model, model_path)
@@ -277,6 +296,10 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
     rank0_print(f"Model Class: {model.__class__.__name__}")
     image_processor = None
 
+    # tokenizer.add_tokens("[SEG]")
+    # num_added_tokens = tokenizer.add_tokens("[SEG]")
+    # kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
+    # print('num_added_tokens', num_added_tokens, kwargs[seg_token_idx])
     if "llava" in model_name.lower() or is_multimodal:
         mm_use_im_start_end = getattr(model.config, "mm_use_im_start_end", False)
         mm_use_im_patch_token = getattr(model.config, "mm_use_im_patch_token", True)
