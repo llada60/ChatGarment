@@ -421,6 +421,7 @@ def train(attn_implementation=None):
     llava_model_args = {
         "multimodal": True,
         "attn_implementation": "sdpa",
+        "model_max_length": training_args.model_max_length,
         # "seg_token_idx": args.seg_token_idx
     }
     tokenizer, model, image_processor, max_length = load_pretrained_model(pretrained, None, model_name, device_map=device_map, **llava_model_args)  # Add any other thing you want to pass in llava_model_args

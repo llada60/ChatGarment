@@ -26,6 +26,7 @@ from llava.utils import rank0_print
 
 def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", torch_dtype="float16",attn_implementation="flash_attention_2", customized_config=None, overwrite_config=None, **kwargs):
     kwargs["device_map"] = device_map
+    model_max_length = kwargs.pop("model_max_length", 3072)
 
     if load_8bit:
         kwargs["load_in_8bit"] = True
@@ -166,7 +167,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             model.load_state_dict(mm_projector_weights, strict=False)
         else:
             rank0_print(f"Loaded LLaVA model: {model_path}")
-            tokenizer = AutoTokenizer.from_pretrained(model_path)
+            tokenizer = AutoTokenizer.from_pretrained(model_path, model_max_length=model_max_length)
             tokenizer.add_tokens("[SEG]")
             num_added_tokens = tokenizer.add_tokens("[SEG]")
             kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
