@@ -1011,7 +1011,7 @@ def translate_args(model_args, data_args, training_args):
         no_eval=False,
         eval_only=False,
         vision_pretrained=None,
-        resume="",
+        resume="/home/ids/liliu/projects/ChatGarment/checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin",
         start_epoch=0,
         print_freq=1,
         gradient_checkpointing=training_args.gradient_checkpointing,
@@ -1167,20 +1167,20 @@ def train(attn_implementation=None):
 
     data_path_list = {   
         "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_restpose_img_v1.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_restpose_img_v1.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_img_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_img_v4.json',
         ],
         "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_singlegarment_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_detailtext_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_detailtext_singlegarment_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_detailtext_v4.json',
         ],
         "sewing_pattern_imgtext": [ # ['garment_id', 'sketch_num', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v3.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v4.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_singlegarment_v2.json'
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_detailtextimg_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_detailtextimg_v3.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_detailtextimg_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/single_image/data_detailtextimg_singlegarment_v2.json'
         ]
     }
 
@@ -1236,8 +1236,24 @@ def train(attn_implementation=None):
         config=ds_config,
     )
 
-    resume = os.path.join(args.log_dir, "ckpt_model")
-    if args.resume:
+    # resume = os.path.join(args.log_dir, "ckpt_model")
+    if args.resume.endswith(".bin"):
+        print("Loading checkpoint from {}".format(args.resume))
+        state_dict = torch.load(args.resume, map_location="cpu")
+        model.load_state_dict(state_dict, strict=True)
+        model = model.bfloat16().cuda()
+        device = model.device
+        model_engine, _, train_loader, scheduler = deepspeed.initialize(
+            model=model,
+            model_parameters=model.parameters(),
+            training_data=train_dataset,
+            collate_fn=collate_fn,
+            config=ds_config,
+        )
+        print("resume training from {}, start from epoch {}".format(
+                    args.resume, args.start_epoch
+        ))
+    elif args.resume:
         args.resume = resume
         load_path, client_state = model_engine.load_checkpoint(args.resume)
         with open(os.path.join(args.resume, "latest"), "r") as f:

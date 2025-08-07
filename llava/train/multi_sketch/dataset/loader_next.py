@@ -258,10 +258,11 @@ class LazySupervisedDataset(Dataset):
         else:
             sources = copy.deepcopy([e["conversations"] for e in sources])
         
+        print("***************** source[0]:", sources[0])
         data_dict = preprocess(
             sources,
             self.tokenizer,
-            has_image=('sketch_path' in self.list_data_dict[i]))
+            has_image=('sketch_num' in self.list_data_dict[i]))
         if isinstance(i, int):
             data_dict = dict(input_ids=data_dict["input_ids"][0],
                              labels=data_dict["labels"][0])

@@ -39,10 +39,6 @@ import json
 from tqdm import tqdm
 import re 
 
-os.environ["MASTER_PORT"] = "23499"
-
-
-
 
 def find_all_linear_names(model, lora_target_modules=['q_proj', 'v_proj']):
     cls = torch.nn.Linear
@@ -166,7 +162,8 @@ def main(args):
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-
+    os.environ["MASTER_PORT"] = str(model_args.master_port)
+    print("MASTER_PORT forced to:", os.environ["MASTER_PORT"])
     local_rank = training_args.local_rank
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
 
@@ -174,6 +171,44 @@ def main(args):
     args.log_dir = os.path.join(args.log_base_dir, args.exp_name)
     world_size = torch.cuda.device_count()
     args.distributed = world_size > 1
+
+    ds_config = {
+        "train_micro_batch_size_per_gpu": args.batch_size,
+        "gradient_accumulation_steps": args.grad_accumulation_steps,
+        "optimizer": {
+            "type": "AdamW",
+            "params": {
+                "lr": args.lr,
+                "weight_decay": 0.0,
+                "betas": (args.beta1, args.beta2),
+            },
+        },
+        "scheduler": {
+            "type": "WarmupDecayLR",
+            "params": {
+                "total_num_steps": args.epochs * args.steps_per_epoch,
+                "warmup_min_lr": 0,
+                "warmup_max_lr": args.lr,
+                "warmup_num_steps": 100,
+                "warmup_type": "linear",
+            },
+        },
+        "fp16": {
+            "enabled": args.precision == "fp16",
+        },
+        "bf16": {
+            "enabled": args.precision == "bf16",
+        },
+        "gradient_clipping": 1.0,
+        "zero_optimization": {
+            "stage": 2,
+            "contiguous_gradients": True,
+            "overlap_comm": True,
+            "reduce_scatter": True,
+            "reduce_bucket_size": 5e8,
+            "allgather_bucket_size": 5e8,
+        },
+    }
 
     bnb_model_from_pretrained_args = {}
     # writer = None
@@ -293,80 +328,44 @@ def main(args):
         data_args=data_args,
     )
 
-    ds_config = {
-        "train_micro_batch_size_per_gpu": args.batch_size,
-        "gradient_accumulation_steps": args.grad_accumulation_steps,
-        "optimizer": {
-            "type": "AdamW",
-            "params": {
-                "lr": args.lr,
-                "weight_decay": 0.0,
-                "betas": (args.beta1, args.beta2),
-            },
-        },
-        "scheduler": {
-            "type": "WarmupDecayLR",
-            "params": {
-                "total_num_steps": args.epochs * args.steps_per_epoch,
-                "warmup_min_lr": 0,
-                "warmup_max_lr": args.lr,
-                "warmup_num_steps": 100,
-                "warmup_type": "linear",
-            },
-        },
-        "fp16": {
-            "enabled": args.precision == "fp16",
-        },
-        "bf16": {
-            "enabled": args.precision == "bf16",
-        },
-        "gradient_clipping": 1.0,
-        "zero_optimization": {
-            "stage": 2,
-            "contiguous_gradients": True,
-            "overlap_comm": True,
-            "reduce_scatter": True,
-            "reduce_bucket_size": 5e8,
-            "allgather_bucket_size": 5e8,
-        },
-    }
-
     ########################################################################################
     # resume_path = 'checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin'
     # resume_path = '/home/ids/liliu/projects/ChatGarment/runs/chatgarment_pre_trained_old/ckpt_model_epoch29_07-07_00_38/global_step15000/mp_rank_00_model_states.pt'
     # resume_path = '/home/ids/liliu/projects/ChatGarment/checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin'
     resume_path = model_args.resume_path
-    print("loading reumse_path: ", resume_path)
-    if resume_path.endswith('.bin'):
-        state_dict = torch.load(resume_path, map_location="cuda")
+    print("loading resume_path: ", resume_path)
+    if resume_path.endswith('.bin') or resume_path.endswith('.pt'):
+        state_dict = torch.load(resume_path, map_location="cpu")
         model.load_state_dict(state_dict, strict=True)
-    # elif resume_path.endswith('.pt'):
-    #     state_dict = torch.load(resume_path, map_location="cuda")
-    #     state_dict = state_dict['module']
-    #     print(dict(model.named_parameters()).keys())
-    #     print(model.get_vision_tower())
-    #     try:
-    #         model.load_state_dict(state_dict, strict=True) #BUG: size mismatch idk
-    #     except:
-    #         raise False
+        
     else:
         print("Loading from deepspeed checkpoint...")
         model_engine, _, _, _ = deepspeed.initialize(
             model=model,
             model_parameters=model.parameters(),
             config = ds_config
-            # checkpoint=resume_path
         )
-        # print("loading checkpoint")
-        load_path, client_state = model_engine.load_checkpoint(resume_path)
-        # print("assigning model")
+        print(f"Before loading: {torch.cuda.memory_allocated() / (1024 ** 2):.2f} MB")
+        load_path, _ = model_engine.load_checkpoint(resume_path)
+        print(f"After loading: {torch.cuda.memory_allocated() / (1024 ** 2):.2f} MB")
         model = model_engine.module
+        print("module loaded")
+        # load_path, client_state = model_engine.load_checkpoint(resume_path)
+        # model = model_engine
         
+        # model_engine = deepspeed.init_inference(model,
+        #                              tensor_parallel={"tp_size": world_size},
+        #                              dtype=torch.half,
+        #                              checkpoint=None if args.pre_load_checkpoint else args.checkpoint_json,
+        #                              replace_with_kernel_inject=True)
+        # model_engine = deepspeed.init_inference(model)
+        # model = model_engine.module
+        # model = model_engine.module
+    # raise False
     model = model.bfloat16().cuda()
-    print("model cuda")
     device = model.device
-    print("model device")
     model.eval()
+    
         
     # if data_args.data_path_eval[-1] == '/':
     #     data_args.data_path_eval = data_args.data_path_eval[:-1]
@@ -376,8 +375,10 @@ def main(args):
     #     dataset_name = data_args.data_path_eval.split('/')[-1]
     # Note: dataset_name
     dataset_name = "close_eva_imgs"
-    
-    args.exp_name = resume_path.split('/')[-1]
+    if resume_path.endswith('pt'):
+        args.exp_name = resume_path.split('/')[-2]
+    else:
+        args.exp_name = resume_path.split('/')[0].split('.')[0]
     parent_folder = os.path.join(args.log_base_dir, args.exp_name, f'{dataset_name}_img_recon')
     if not os.path.exists(parent_folder):
         os.makedirs(parent_folder)
@@ -395,15 +396,17 @@ def main(args):
         data_item = val_dataset[i]
 
         # Note: quick skip
-        image_path = data_item['image_path']
-        garment_id = image_path.split('/')[-1]
-        garment_id = garment_id.split('.')[0]
-        if not garment_id in ["10035_3891"]:
-            continue
-        saved_dir = os.path.join(parent_folder, 'vis_new', f'valid_garment_{garment_id}')
-        # if there is something inside saved_dir continue
-        if os.path.exists(saved_dir) and len(os.listdir(saved_dir)) > 0:
-            continue
+        # image_path = data_item['image_path']
+        # print('image_path', image_path)
+        # if image_path not in ['/home/ids/liliu/data/ChatGarment/evaluations/close_eva_imgs/sketch/10042_4656.png', '/home/ids/liliu/data/ChatGarment/evaluations/close_eva_imgs/sketch/10075_7399.png','/home/ids/liliu/data/ChatGarment/evaluations/close_eva_imgs/sketch/10038_4122.png']:
+        #     continue
+        # image_path = data_item['image_path']
+        # garment_id = image_path.split('/')[-1]
+        # garment_id = garment_id.split('.')[0]
+        # saved_dir = os.path.join(parent_folder, 'vis_new', f'valid_garment_{garment_id}')
+        # # if there is something inside saved_dir continue
+        # if os.path.exists(saved_dir) and len(os.listdir(saved_dir)) > 0:
+        #     continue
         
         answers = []
         question1 = 'Can you describe the geometry features of the garments worn by the model in the Json format?'
@@ -421,8 +424,7 @@ def main(args):
             else:
                 # prompt = 'can you describe this pose?'
                 prompt = DEFAULT_IMAGE_TOKEN + "\n" + question2 + "\n" + text_output.replace('upper_garment', 'upperbody_garment').replace('lower_garment', 'lowerbody_garment')
-                print('prompt', prompt)
-                # assert False
+
             
             conv.append_message(conv.roles[0], prompt)
             conv.append_message(conv.roles[1], None)
@@ -448,8 +450,7 @@ def main(args):
 
             output_ids = output_ids[0, 1:]
             text_output = tokenizer.decode(output_ids, skip_special_tokens=False).strip().replace("</s>", "")
-            # print("--------------text_output1--------------")
-            # print(text_output)
+
             if k == 0:
                 continue
             
@@ -458,14 +459,17 @@ def main(args):
             answers.append(text_output)
 
             if True:
+                
                 image_path = data_item['image_path']
-                print('image_path', image_path)
-
                 garment_id = image_path.split('/')[-1]
                 garment_id = garment_id.split('.')[0]
-                json_output = repair_json(text_output, return_objects=True)
-                # print("--------------text_output2--------------")
-                # print(json_output)
+                try:
+                    json_output = repair_json(text_output, return_objects=True)
+                    # json_output = repair_json(str(json_output), return_objects=True)
+                except:
+                    print("error text_output for repaired_json")
+                    print(text_output)
+                    raise False
 
                 saved_dir = os.path.join(parent_folder, 'vis_new', f'valid_garment_{garment_id}')
 
@@ -483,14 +487,13 @@ def main(args):
                 output_dir = saved_dir
                 all_output_dir.append(output_dir)
                 shutil.copy(image_path, os.path.join(output_dir, f'gt_image.png'))
-                # print("-------------------json_output-------------------")
-                # print(json_output)
+
                 try:
                     all_json_spec_files = run_garmentcode_parser_float50(all_json_spec_files, json_output, float_preds, output_dir)
                 except:
                     print(f"Error processing garment {garment_id}, skipping...")
-                    # print(json_output)
-                    continue
+                    print(json_output)
+                    raise False
 
     saved_json_Path = os.path.join(parent_folder, 'vis_new', 'all_json_spec_files.json')
     with open(saved_json_Path, 'w') as f:

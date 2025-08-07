@@ -87,7 +87,7 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
             input_ids = None
 
         output = super().forward(
-            input_ids=input_ids, # [batch_size, seq_len]
+            input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
@@ -104,9 +104,7 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
         output_hidden_states = output.hidden_states
 
         if not inference:
-            # find the [SEG]  token, skip the first token
-            seg_token_mask = input_ids[:, 1:] == self.seg_token_idx 
-            # add a zero padding at the end to align with input_ids
+            seg_token_mask = input_ids[:, 1:] == self.seg_token_idx
             seg_token_mask = torch.cat(
                 [
                     seg_token_mask,
@@ -114,7 +112,7 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
                 ],
                 dim=1,
             )
-            # assure the seg_token_mask is the same length as output_hidden_states by adding 0 padding in the front
+
             padded_len = output_hidden_states[-1].shape[1] - seg_token_mask.shape[1]
             seg_token_mask = torch.cat(
                     [torch.zeros((seg_token_mask.shape[0], padded_len)).bool().cuda(), seg_token_mask],
@@ -126,17 +124,15 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
             return output
 
 
-        if seg_token_mask.sum() > 0: # at least one [SEG] token
-            # output_hidden_states.shape # [bs, seq_len, hidden_size]
-            # seg_token_mask.shape # [bs, seq_len]
-            last_hidden_state = self.float_layer(output_hidden_states[-1]) # [bs, seq_len, last_dim=76]
+        if seg_token_mask.sum() > 0:
+            last_hidden_state = self.float_layer(output_hidden_states[-1])
 
-            pred_embeddings = last_hidden_state[seg_token_mask] # [num_seg_tokens, last_dim=76]
+            pred_embeddings = last_hidden_state[seg_token_mask]
             seg_token_counts = seg_token_mask.int().sum(-1)  # [bs, ]
-            seg_token_offset = seg_token_counts.cumsum(-1) 
+            seg_token_offset = seg_token_counts.cumsum(-1)
             seg_token_offset = torch.cat(
                 [torch.zeros(1).long().cuda(), seg_token_offset], dim=0
-            ) # [bs + 1, ]
+            )
 
             pred_embeddings_ = []
             for i in range(len(seg_token_offset) - 1):
@@ -144,11 +140,10 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
                 pred_embeddings_.append(pred_embeddings[start_i:end_i])
 
             pred_embeddings = pred_embeddings_
-            text_embeddings = torch.cat(pred_embeddings, dim=0) # all the [SEG] predictions, [num_seg_tokens, last_dim=76]
+            text_embeddings = torch.cat(pred_embeddings, dim=0)
 
             if float_labels is not None:
                 float_labels = torch.cat(float_labels, dim=0).type(text_embeddings.dtype)
-                # last_dim corresponds to the clothing parameters
                 hmr_loss = torch.abs(text_embeddings.reshape(-1, self.last_dim) - float_labels.reshape(-1, self.last_dim))
                 if float_weight is not None:
                     float_weight = torch.cat(float_weight, dim=0).type(text_embeddings.dtype)
@@ -163,7 +158,7 @@ class GarmentGPTFloat50ForCausalLM(LlavaLlamaForCausalLM):
         else:
             hmr_loss = output.loss * 0.0
 
-        output_ids = output.logits.argmax(-1) # [bs, seq_len]
+        output_ids = output.logits.argmax(-1)
 
         if output.loss is None:
             return output

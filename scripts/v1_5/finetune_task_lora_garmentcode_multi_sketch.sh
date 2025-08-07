@@ -13,6 +13,7 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 # export MASTER_PORT=23481
 # export TCNN_CUDA_ARCHITECTURES=80
 
+
 deepspeed llava/train/multi_sketch/train_mem_garmentcode_outfit.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
@@ -32,7 +33,7 @@ deepspeed llava/train/multi_sketch/train_mem_garmentcode_outfit.py \
     --bf16 True \
     --output_dir ./checkpoints/llava-v1.5-7b-task-lora \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 16 \
+    --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \

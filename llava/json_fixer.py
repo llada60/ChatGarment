@@ -111,6 +111,7 @@ class JSONParser:
                     "info",
                 )
                 json = json[0]
+        
         if self.logger.log_level == "none":
             return json
         else:
@@ -672,3 +673,16 @@ def from_file(
     fd.close()
 
     return jsonobj
+
+
+if __name__ == "__main__":
+
+    test_json = '''{'upperbody _garment": {meta': {'upper': "Shirt', 'wb": null, 'bottom': nully, 'collar': {'f_collar':
+'CircleNeckHalf', 'b_collar': 'CircleNeckHalf', 'width': -1, 'fc_depth': -1, 'bc_depth': -1, 'fc_angle':
+85, 'bc_angle': 87, 'f_bezier_x': -1, 'f_bezier_y': -1, 'b_bezier_x': -1, 'b_bezier_y': -1,
+'f_flip_curve': false, 'b_flip_curve': false, 'component': {'style': null, 'depth': 2, 'lapel':
+'CircleNeckHalf", 'hood': 'CircleNeckHalf", 'hood_depth': -1, 'hood_length': -1)), 'left';
+{'enable_asym': false}, 'shirt': {'strapless': false, 'length': -1, 'width': -1, 'flare': -1), 'sleeve': {'slee': false, 'armhole': 'ArmholeCurve', 'length': -1, 'connect': -1, 'end': -1, 'cuff': {'type': null)}} , 'lowerbody_garment': [, 'pants': {'length': -1111, 'width': -1111, 'flare': -11, 'rise': -111,
+'cuff: ('type': null)}} } }'''
+    final_json = repair_json(test_json, return_objects=True)
+    print("Final JSON:", final_json)

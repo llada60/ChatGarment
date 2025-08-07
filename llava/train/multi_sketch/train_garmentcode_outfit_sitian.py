@@ -408,9 +408,6 @@ def train(attn_implementation=None):
     # breakpoint()
     # tokenizer.pad_token = tokenizer.unk_token
     # tokenizer.add_tokens("[SEG]")
-
-    # num_added_tokens = tokenizer.add_tokens("[SEG]")
-    # args.seg_token_idx = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
     
     # print('num_added_tokens', num_added_tokens, args.seg_token_idx)
 
@@ -426,7 +423,13 @@ def train(attn_implementation=None):
     }
     tokenizer, model, image_processor, max_length = load_pretrained_model(pretrained, None, model_name, device_map=device_map, **llava_model_args)  # Add any other thing you want to pass in llava_model_args
 
-    
+    if tokenizer.pad_token is None or tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.unk_token
+        tokenizer.pad_token_id = tokenizer.unk_token_id   
+
+    num_added_tokens = tokenizer.add_tokens("[SEG]")
+    args.seg_token_idx = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
+    print('num_added_tokens', num_added_tokens, args.seg_token_idx)
 
     # model = Multi_GarmentGPTFloat50ForCausalLM.from_pretrained(
     #     model_args.model_name_or_path,

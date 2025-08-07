@@ -223,8 +223,8 @@ def gpt4v_captioning(img_dir, out_dir):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--in_dir', type=str, default="/home/ids/liliu/data/ChatGarment/v2/1046/motion_0/imgs/150/img", help="input image folder")
-    parser.add_argument('--out_dir', type=str, default="runs/example_eva_SAM", help="output mask folder")
+    parser.add_argument('--in_dir', type=str, default="/home/ids/liliu/data/ChatGarment/evaluations/close_eva_imgs/imgs", help="input image folder")
+    parser.add_argument('--out_dir', type=str, default="runs/close_eva_SAM", help="output mask folder")
     parser.add_argument('--overwrite', action="store_true")
     opt = parser.parse_args()
 
@@ -268,7 +268,7 @@ if __name__ == '__main__':
     for imgid, img_name in enumerate(tqdm(image_dir)):
         if not img_name.endswith('.jpg') and not img_name.endswith('.png'):
             continue
-        CLASSES = ["dress", "skirt", "pants", "shirt", "coat"]
+        CLASSES = ["pants", "shirt"]
         # CLASSES = [item.strip() for item in json.loads(gpt4v_responses[ f'{imgid}_{img_name[:-4]}' ]).keys()]
         CLASSES = ["person"] + CLASSES
 

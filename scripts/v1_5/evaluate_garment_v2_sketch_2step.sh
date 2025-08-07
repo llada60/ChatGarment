@@ -8,13 +8,14 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 # export C_INCLUDE_PATH=/is/software/nvidia/cudnn-8.4.1-cu11.6/include
 # export LIBRARY_PATH=/is/software/nvidia/cudnn-8.4.1-cu11.6/lib64
 # export LD_LIBRARY_PATH=$LIBRARY_PATH:$LD_LIBRARY_PATH
-
+#!/bin/bash
 export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 # export TCNN_CUDA_ARCHITECTURES=80
-
-deepspeed scripts/evaluate_garment_v2_sketch_1float.py \
+echo "MASTER_PORT is: $MASTER_PORT"
+deepspeed --master_port=$MASTER_PORT scripts/evaluate_garment_v2_sketch_1float.py \
+    --master_port $MASTER_PORT \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
-    --deepspeed ./scripts/zero3.json \
+    --deepspeed ./scripts/zero2.json \
     --model_name_or_path /home/ids/liliu/data/llava/llava-v1.5-7b \
     --version v1 \
     --data_path ./ \
