@@ -10,7 +10,7 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation.utils import GenerateOutput
 
 # from ...constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
-from llava.model.llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
+from llava.model.llava_next_arch import LlavaMetaModel, LlavaMetaForCausalLM
 from transformers import Qwen2Config, Qwen2Model, Qwen2ForCausalLM
 
 # from .qwen.modeling_qwen import QWenLMHeadModel, QWenModel
@@ -80,7 +80,6 @@ class Multi_GarmentGPTFloat50ForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM)
         modalities: Optional[List[str]] = ["image"],
         dpo_forward: Optional[bool] = False,
         cache_position=None,
-        inference: Option[bool] = False,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
         if inputs_embeds is None:

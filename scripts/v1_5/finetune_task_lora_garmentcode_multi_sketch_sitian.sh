@@ -13,7 +13,7 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 # export MASTER_PORT=23481
 # export TCNN_CUDA_ARCHITECTURES=80
 
-python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi-sketch/train_garmentcode_outfit_sitian.py \
+python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi_sketch/train_garmentcode_outfit_sitian.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
     --model_name_or_path /home/sitian/Texture-Deform_2DSketchGarments/llava/model/language_model/llava-onevision-qwen2-7b-ov-chat \
@@ -35,7 +35,6 @@ python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi-sketch/tra
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 1 \
-    --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 50000 \
     --save_total_limit 1 \
@@ -49,5 +48,6 @@ python /home/sitian/Texture-Deform_2DSketchGarments/llava/train/multi-sketch/tra
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
-    --report_to wandb 
+    --report_to wandb \
+    --data_root_path /home/sitian/Texture-Deform_2DSketchGarments/data/sketches
 

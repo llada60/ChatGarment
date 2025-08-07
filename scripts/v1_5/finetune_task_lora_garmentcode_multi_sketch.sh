@@ -49,5 +49,6 @@ deepspeed llava/train/multi_sketch/train_mem_garmentcode_outfit.py \
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
-    --report_to wandb 
+    --report_to wandb \
+    --data_root_path /home/ids/liliu/data/ChatGarment/training/synthetic/new_sketches
 

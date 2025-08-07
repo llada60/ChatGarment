@@ -61,7 +61,7 @@ from llava.train.multi_sketch.args.multiIMG_argument import DataArguments, Model
 
 from llava.model.llava_next_builder import load_pretrained_model
 
-
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
 from packaging import version
 IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= version.parse('0.14')
@@ -397,13 +397,7 @@ def train(attn_implementation=None):
     assert model_args.vision_tower is not None
     assert 'mpt' not in model_args.model_name_or_path
 
-    # tokenizer = transformers.AutoTokenizer.from_pretrained(
-    #     model_args.model_name_or_path,
-    #     cache_dir=training_args.cache_dir,
-    #     model_max_length=training_args.model_max_length,
-    #     padding_side="right",
-    #     use_fast=False,
-    # )
+
 
     # breakpoint()
     # tokenizer.pad_token = tokenizer.unk_token
@@ -423,8 +417,19 @@ def train(attn_implementation=None):
         "attn_implementation": "sdpa",
         # "seg_token_idx": args.seg_token_idx
     }
-    tokenizer, model, image_processor, max_length = load_pretrained_model(pretrained, None, model_name, device_map=device_map, **llava_model_args)  # Add any other thing you want to pass in llava_model_args
 
+    # rank0_print(f"Loaded LLaVA model: {pretrained}")
+    # tokenizer = transformers.AutoTokenizer.from_pretrained(
+    #     model_args.model_name_or_path,
+    #     cache_dir=training_args.cache_dir,
+    #     model_max_length=training_args.model_max_length,
+    #     padding_side="right",
+    #     use_fast=False,
+    # )
+    # tokenizer.add_tokens("[SEG]")
+    # kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
+
+    tokenizer, model, image_processor, max_length = load_pretrained_model(pretrained, None, model_name, device_map=device_map, **llava_model_args)  # Add any other thing you want to pass in llava_model_args
     
 
     # model = Multi_GarmentGPTFloat50ForCausalLM.from_pretrained(
@@ -528,7 +533,8 @@ def train(attn_implementation=None):
 
     model.print_trainable_parameters()
     # multi sketch path
-    data_root_path = '/home/ids/liliu/data/ChatGarment/training/synthetic/new_sketches'
+    # data_root_path = '/home/ids/liliu/data/ChatGarment/training/synthetic/new_sketches'
+    data_root_path = data_args.data_root_path
     data_path_list = {   
         "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
             # os.path.join(data_root_path, 'data_restpose_img_v1.json'),

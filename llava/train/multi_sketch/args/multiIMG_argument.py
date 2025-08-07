@@ -23,6 +23,7 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
+    data_root_path: Optional[str] = field(default=None)
     data_path: str = field(default=None,
                            metadata={"help": "Path to the training data."})
     data_path_eval: str = field(default=None,

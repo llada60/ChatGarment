@@ -82,6 +82,8 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
         # else:
         if inputs_embeds is not None:
             input_ids = None
+
+        breakpoint()
         
         output = super().forward(
             input_ids=input_ids, #FIXME: here the LLava-OV's input_ids is not the same structure as LLava, but should figure out and change the input style
