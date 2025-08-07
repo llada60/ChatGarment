@@ -416,18 +416,8 @@ def train(attn_implementation=None):
         # "seg_token_idx": args.seg_token_idx
     }
 
-    # rank0_print(f"Loaded LLaVA model: {pretrained}")
-    # tokenizer = transformers.AutoTokenizer.from_pretrained(
-    #     model_args.model_name_or_path,
-    #     cache_dir=training_args.cache_dir,
-    #     model_max_length=training_args.model_max_length,
-    #     padding_side="right",
-    #     use_fast=False,
-    # )
-    # tokenizer.add_tokens("[SEG]")
-    # kwargs['seg_token_idx'] = tokenizer("[SEG]", add_special_tokens=False).input_ids[-1]
-
     tokenizer, model, image_processor, max_length = load_pretrained_model(pretrained, None, model_name, device_map=device_map, **llava_model_args)  # Add any other thing you want to pass in llava_model_args
+    data_args.model = model
 
     if tokenizer.pad_token is None or tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.unk_token
@@ -517,7 +507,8 @@ def train(attn_implementation=None):
 
     ######################### ？
 
-    data_args.image_processor = vision_tower.image_processor
+    # data_args.image_processor = vision_tower.image_processor
+    data_args.image_processor = image_processor
     data_args.is_multimodal = True
 
     model.config.image_aspect_ratio = data_args.image_aspect_ratio

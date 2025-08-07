@@ -38,8 +38,9 @@ import bisect
 import os
 import glob
 from llava.train.sketch.args.argument import DataArguments
-from .preprocess import *
+from .preprocess_next import *
 from .utils import *
+from llava_mm_utils import process_images
 
 def _tokenize_fn(strings: Sequence[str],
                  tokenizer: transformers.PreTrainedTokenizer) -> Dict:
@@ -219,9 +220,13 @@ class LazySupervisedDataset(Dataset):
             image_files = sources[0]['sketch_path']
             image_folder = self.data_args.image_folder
             processor = self.data_args.image_processor
+            model = self.data_args.model
 
             # images = [convert_rgba_to_rgb_with_white_bg(os.path.join(image_folder, image_file)) for image_file in image_files]
             images = []
+            print("sketch_path: ")
+            print(image_files)
+            print()
             for image_file in image_files:
                 image_file = image_file.strip()
                 if not os.path.exists(image_file):
@@ -248,9 +253,11 @@ class LazySupervisedDataset(Dataset):
                             result.paste(pil_img, ((height - width) // 2, 0))
                             return result
                     image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
-                    
-                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-                images.append(image)
+                image_tensor = process_images([image], processor, model.config)
+                images = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
+                
+                # image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+                # images.append(image)
 
             sources = preprocess_multimodal(
                 copy.deepcopy([e["conversations"] for e in sources]),
