@@ -41,3 +41,11 @@ playground
 **/LLaVA-NeXT/
 
 **/data/
+
+**/logs/
+**/mtrain_logs/
+**/eval_logs/
+**/single_logs/
+
+**/grounding_dino/
+

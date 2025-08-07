@@ -29,7 +29,7 @@ deepspeed llava/train/image/train_mem_garmentcode_outfit.py \
     --group_by_modality_length True \
     --bf16 True \
     --output_dir ./checkpoints/llava-v1.5-7b-task-lora \
-    --num_train_epochs 1 \
+    --num_train_epochs 100 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 1 \

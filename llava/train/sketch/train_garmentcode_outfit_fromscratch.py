@@ -53,11 +53,11 @@ import shutil
 from llava.json_fixer import repair_json
 import os
 import glob
-from dataset import LazySupervisedDataset, DataCollatorForSupervisedDataset, LazySupervisedDatasetCmb
+from .dataset import LazySupervisedDataset, DataCollatorForSupervisedDataset, LazySupervisedDatasetCmb
 from llava.train.sketch.args.argument import DataArguments, ModelArguments, TrainingArguments
 
 local_rank = None
-os.environ["MASTER_PORT"] = "23480"
+# os.environ["MASTER_PORT"] = "23480"
 
 def rank0_print(*args):
     if local_rank == 0:
@@ -332,7 +332,7 @@ def translate_args(model_args, data_args, training_args):
         dataset=None,
         sample_rates=None,
         log_base_dir='./runs',
-        exp_name="chatgarment_train_scratch",
+        exp_name="chatgarment_pre_trained",
         epochs=40,
         steps_per_epoch=500,
         batch_size=4,
@@ -344,7 +344,7 @@ def translate_args(model_args, data_args, training_args):
         no_eval=False,
         eval_only=False,
         vision_pretrained=None,
-        resume="",
+        resume="/home/ids/liliu/projects/ChatGarment/checkpoints/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final/pytorch_model.bin",
         start_epoch=0,
         print_freq=1,
         gradient_checkpointing=training_args.gradient_checkpointing,
@@ -362,11 +362,11 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
     train_dataset = LazySupervisedDatasetCmb(tokenizer=tokenizer,
                                 data_path_list=data_path_list,
                                 data_args=data_args)
-    
-    eval_dataset = LazySupervisedDataset(tokenizer=tokenizer,
-                                data_path=data_args.data_path_eval,
-                                data_args=data_args,
-                                max_len=10)
+    eval_dataset = ''
+    # eval_dataset = LazySupervisedDataset(tokenizer=tokenizer,
+    #                             data_path=data_args.data_path_eval,
+    #                             data_args=data_args,
+    #                             max_len=10)
 
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
 
@@ -517,20 +517,20 @@ def train(attn_implementation=None):
 
     data_path_list = {   
         "sewing_pattern_img": [ #['garment_id', 'sketch_num', 'conversations', 'all_floats', 'sample_prob', 'id', 'sketch_path']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_restpose_img_v1.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_img_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_restpose_img_v1.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_img_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_img_v4.json',
         ],
         "sewing_pattern_text": [ # ['id', 'conversations', 'all_floats', 'float_mask', 'sample_prob']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_singlegarment_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtext_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtext_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtext_singlegarment_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtext_v4.json',
         ],
         "sewing_pattern_imgtext": [ # ['garment_id', 'sketch_num', 'conversations', 'all_floats', 'float_mask', 'sample_prob', 'id', 'sketch_path']
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v2.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v3.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_v4.json',
-            '/home/ids/liliu/data/ChatGarment/training/synthetic/data_detailtextimg_singlegarment_v2.json'
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_v2.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_v3.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_v4.json',
+            '/home/ids/liliu/data/ChatGarment/training/synthetic/new_single_sketch/data_detailtextimg_singlegarment_v2.json'
         ]
     }
 
@@ -578,6 +578,8 @@ def train(attn_implementation=None):
         },
     }
 
+    model = model.bfloat16().cuda()
+    device = model.device
     model_engine, _, train_loader, scheduler = deepspeed.initialize(
         model=model,
         model_parameters=model.parameters(),
@@ -585,31 +587,16 @@ def train(attn_implementation=None):
         collate_fn=collate_fn,
         config=ds_config,
     )
-
-    resume = os.path.join(args.log_dir, "ckpt_model")
-    if args.resume:
-        args.resume = resume
-        load_path, client_state = model_engine.load_checkpoint(args.resume)
-        with open(os.path.join(args.resume, "latest"), "r") as f:
-            ckpt_dir = f.readlines()[0].strip()
-        args.start_epoch = (
-            int(ckpt_dir.replace("global_step", "")) // args.steps_per_epoch
-        )
-        print(
-            "resume training from {}, start from epoch {}".format(
-                args.resume, args.start_epoch
-            )
-        )
-
     
     train_iter = iter(train_loader)
     best_score, cur_ciou = 0.0, 0.0
+    args.start_epoch = 0
 
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
         train_iter = train_epoch(
             train_loader,
-            model_engine, 
+            model_engine,
             epoch,
             scheduler,
             writer,
@@ -640,7 +627,6 @@ def train(attn_implementation=None):
                     shutil.rmtree(save_dir)
             torch.distributed.barrier()
             model_engine.save_checkpoint(save_dir)
-
 
 if __name__ == "__main__":
     train()

@@ -60,7 +60,7 @@ def search_path(parent_path, target_name, suffix):
         #     return os.path.join(parent_path, file)
         if file == target_name + suffix:
             return os.path.join(parent_path, file)
-    
+    print(target_name + suffix)
     print(f'Warning: {target_name} not found in {parent_path}')
     return None
 
@@ -72,7 +72,7 @@ def parse_args():
     parser.add_argument('--img_dir', type=str, default='checkpoints/CloSE_eva_SAM/imgs_upsampled/')
     parser.add_argument('--inp_pose_params_dir', type=str, default='checkpoints/CloSE_eva_SAM/tokenhmr_output/')
     parser.add_argument('--garmentcode_dir', type=str, default='runs/try_7b_lr1e_4_v3_garmentcontrol_4h100_v4_final_eva/vis_new/')
-    parser.add_argument('--template_smpl_pkl', type=str, default='checkpoints/extra_data/aaa_mesh_registrarion/registered_params_garmentgenerator_SMPL.pkl')
+    parser.add_argument('--template_smpl_pkl', type=str, default='/home/ids/liliu/projects/ChatGarment/assets/eval/aaa_mesh_registrarion/registered_params_garmentgenerator_SMPL.pkl')
     parser.add_argument('--saved_dir', type=str, default='checkpoints/CloSE_eva_SAM/postprocess/')
     parser.add_argument('--garment_seg_dir', type=str, default='checkpoints/CloSE_eva_SAM/mask/')
     args = parser.parse_args()
@@ -119,7 +119,7 @@ def parse_args():
             print(f'Warning: garment type {segname} not in possible_garment_names')
             continue
     
-    print('new_args_list', new_args_list)
+    # print('new_args_list', new_args_list)
     if 'shirt' in segname_list and 'coat' in segname_list:
         print('Warning: shirt and coat both exist, removing shirt')
         shirt_idx = segname_list.index('shirt')

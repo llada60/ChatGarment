@@ -1,0 +1,4 @@
+from llava.train.sketch.train_garmentcode_outfit_fromscratch import train
+
+if __name__ == "__main__":
+    train(attn_implementation="flash_attention_2")

@@ -13,7 +13,7 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 # export TCNN_CUDA_ARCHITECTURES=80
 
 deepspeed llava/train/sketch/train_mem_garmentcode_outfit.py \
-    --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 1e-6 \
+    --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
     --model_name_or_path /home/ids/liliu/data/llava/llava-v1.5-7b \
     --version v1 \
@@ -37,7 +37,7 @@ deepspeed llava/train/sketch/train_mem_garmentcode_outfit.py \
     --save_strategy "steps" \
     --save_steps 50000 \
     --save_total_limit 1 \
-    --learning_rate 1e-6 \
+    --learning_rate 1e-5 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \

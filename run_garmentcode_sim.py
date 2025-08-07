@@ -27,7 +27,7 @@ def run_simultion_warp(pattern_spec, sim_config, output_path, easy_texture_path)
         out_path=output_path, 
         in_name=garment_name,
         body_name='mean_all',    # 'f_smpl_average_A40'
-        smpl_body=True,   # NOTE: depends on chosen body model
+        smpl_body=False,   # NOTE: depends on chosen body model
         add_timestamp=False,
         system_path='/home/ids/liliu/projects/ChatGarment/NvidiaWarp-GarmentCode/GarmentCodeRC/system.json',
         easy_texture_path=easy_texture_path
@@ -59,7 +59,7 @@ def run_simultion_warp(pattern_spec, sim_config, output_path, easy_texture_path)
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--all_paths_json", type=str, default='/home/ids/liliu/projects/ChatGarment/runs/ckpt_model_epoch32_07-07_07_03/sketch_recon', help="path to the save resules shapenet dataset")
+    parser.add_argument("--all_paths_json", type=str, default='', help="path to the save resules shapenet dataset")
     parser.add_argument("--json_spec_file", type=str, default='', help="path to the save resules shapenet dataset")
     parser.add_argument("--easy_texture_path", type=str, default='', help="path to the save resules shapenet dataset")
     args = parser.parse_args()
@@ -78,9 +78,13 @@ if __name__ == "__main__":
         print(json_spec_file)
         json_spec_file = json_spec_file.replace('validate_garment', 'valid_garment')
         saved_folder = os.path.dirname(json_spec_file)
-        run_simultion_warp(
-                json_spec_file,
-                'assets/Sim_props/default_sim_props.yaml',
-                saved_folder,
-                easy_texture_path=args.easy_texture_path
-            )
+        try:
+            run_simultion_warp(
+                    json_spec_file,
+                    'assets/Sim_props/default_sim_props.yaml',
+                    saved_folder,
+                    easy_texture_path=args.easy_texture_path
+                )
+        except:
+            print("Error simulate json_spec_file: ", json_spec_file)
+            continue
