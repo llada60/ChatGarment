@@ -38,7 +38,7 @@ The installation instructions are provided in ``docs/Installation.md``.
 ## Model Training
 The training data is available in [ChatGarmentDataset](https://huggingface.co/datasets/sy000/ChatGarmentDataset).
 ```Shell
-./scripts/v1_5/finetune_task_lora_garmentcode_wholebody_combineT2.sh
+./scripts/v1_5/finetune_task_lora_garmentcode_outfit.sh
 ```
 
 ## Model Inference
