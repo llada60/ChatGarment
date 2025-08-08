@@ -80,13 +80,13 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
 
         if attention_mask is not None and attention_mask.dtype == torch.bool:
             attention_mask = attention_mask.to(dtype=torch.float)
-        print("attention_mask:", attention_mask)
-        print("attention_mask dtype:", attention_mask.dtype)
-        print("attention_mask unique values:", torch.unique(attention_mask))
-        print("input_ids shape:", input_ids.shape)
-        print("attention_mask shape:", attention_mask.shape)
-        print("max input_ids:", input_ids.max())
-        print("vocab_size:", self.model.config.vocab_size)
+        # print("attention_mask:", attention_mask)
+        # print("attention_mask dtype:", attention_mask.dtype)
+        # print("attention_mask unique values:", torch.unique(attention_mask))
+        # print("input_ids shape:", input_ids.shape) # [4, 652]
+        # print("attention_mask shape:", attention_mask.shape) # [4, 652]
+        # print("max input_ids:", input_ids.max()) # 151647
+        # print("vocab_size:", self.model.config.vocab_size) # 151648
         # """
         # attention_mask: WARNING: tokenization mismatch: 511 vs. 512. (ignored)
         # tensor([[ True,  True,  True,  ..., False, False, False],
@@ -105,7 +105,7 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
         if inputs_embeds is not None:
             input_ids = None
 
-        breakpoint()
+        # breakpoint()
         
         output = super().forward(
             input_ids=input_ids, #FIXME: here the LLava-OV's input_ids is not the same structure as LLava, but should figure out and change the input style
