@@ -40,7 +40,7 @@ import glob
 from llava.train.sketch.args.argument import DataArguments
 from .preprocess_next import *
 from .utils import *
-from llava_mm_utils import process_images
+from llava.mm_utils import process_images
 
 def _tokenize_fn(strings: Sequence[str],
                  tokenizer: transformers.PreTrainedTokenizer) -> Dict:
@@ -182,6 +182,7 @@ class LazySupervisedDataset(Dataset):
         ################ prompt augmentation ################
         prompt = sources["conversations"][0]["value"] # human prompt
         prompt = change_prompt(prompt[:])
+        # print("original prompt: ", prompt)
         sources["conversations"][0]["value"] = prompt
 
         if self.has_sewing_pattern:
@@ -194,11 +195,13 @@ class LazySupervisedDataset(Dataset):
         if '<image>' not in prompt:
             sources["conversations"][0]["value"] = '<image>\n' + prompt
             self.list_data_dict[i]['sketch_path'] = "docs/images/black_img.jpg"
-            sources["sketch_path"] = []
-            for _ in range(4):
-                sources["sketch_path"].append("docs/images/black_img.jpg")
-            sources['sketch_num'] = 4
+            sources["sketch_path"] = "docs/images/black_img.jpg"
             rand_flag = False
+        else:
+            sources["conversations"][0]["value"] = '<image>\n <image>\n <image>\n' + sources["conversations"][0]["value"]
+        # print("final prompt: ", sources["conversations"][0]["value"])
+        # print("sketch_path: ", self.list_data_dict[i]['sketch_path'])
+        raise False
         
         if isinstance(i, int):
             sources = [sources]
@@ -210,13 +213,10 @@ class LazySupervisedDataset(Dataset):
             all_floats, all_floats_weight = generate_all_float_labels(sources[0]['all_floats'], indices)
         
         if 'sketch_num' in sources[0]:
-            try:
-                sketch_num = sources[0]['sketch_num']
-                # sketch_num = len(sources[0]['sketch_path'])
-            except:
-                print("error in sketch_num")
-                print(sources[0].keys())
-                raise False
+            sketch_num = sources[0]['sketch_num']
+            # print("sketch_num: ", sketch_num)
+            # sketch_num = len(sources[0]['sketch_path'])
+
             image_files = sources[0]['sketch_path']
             image_folder = self.data_args.image_folder
             processor = self.data_args.image_processor
@@ -224,9 +224,7 @@ class LazySupervisedDataset(Dataset):
 
             # images = [convert_rgba_to_rgb_with_white_bg(os.path.join(image_folder, image_file)) for image_file in image_files]
             images = []
-            print("sketch_path: ")
-            print(image_files)
-            print()
+            image_tensors = []
             for image_file in image_files:
                 image_file = image_file.strip()
                 if not os.path.exists(image_file):
@@ -254,10 +252,13 @@ class LazySupervisedDataset(Dataset):
                             return result
                     image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
                 image_tensor = process_images([image], processor, model.config)
-                images = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
+                # print("image_tensor.shape", image_tensor.shape)
+                image_tensors.append(image_tensor)
+            # print("image_tensor length: ", len(image_tensors))
+            images = [_image.to(dtype=torch.float16) for _image in image_tensors]
                 
-                # image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-                # images.append(image)
+            # image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+            # images.append(image)
 
             sources = preprocess_multimodal(
                 copy.deepcopy([e["conversations"] for e in sources]),
@@ -265,7 +266,6 @@ class LazySupervisedDataset(Dataset):
         else:
             sources = copy.deepcopy([e["conversations"] for e in sources])
         
-        print("***************** source[0]:", sources[0])
         data_dict = preprocess(
             sources,
             self.tokenizer,
@@ -277,14 +277,16 @@ class LazySupervisedDataset(Dataset):
         # print('sketch_path', image.shape) # image torch.Size([3, 336, 336])
         if 'sketch_num' in self.list_data_dict[i]:
             # data_dict['image'] = image
-            assert sketch_num == len(image_files) 
+            assert sketch_num == len(image_files)
+            print("images length: ", len(images))
             assert sketch_num == len(images)
             assert len(images)>=4
             selected_indices = random.sample(range(len(images)), 4)
-            selected_images = [images[idx] for idx in selected_indices]
+            selected_images = [images[idx] for idx in selected_indices] 
             selected_paths = [os.path.join(image_folder, image_files[idx]) for idx in selected_indices]
-            data_dict['images'] = torch.stack(selected_images, dim=0)
+            data_dict['images'] = torch.stack(selected_images, dim=0)[1]
             data_dict['image_paths'] = selected_paths
+            print("data_dict['images'].shape: ", data_dict['images'].shape) # [3, 336, 336] for single sketch; for now torch.Size([4, 1, 3, 384, 384])
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
             crop_size = self.data_args.image_processor.crop_size
