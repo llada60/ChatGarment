@@ -264,7 +264,7 @@ class LazySupervisedDataset(Dataset):
             # sketch_num = len(sources[0]['sketch_path'])
 
             image_files = sources[0]['sketch_path']
-            image_folder = self.data_args.image_folder
+            # image_folder = self.data_args.image_folder
             processor = self.data_args.image_processor
             model = self.data_args.model
             print("sketch_path: ", image_files)
@@ -296,13 +296,17 @@ class LazySupervisedDataset(Dataset):
         if 'sketch_num' in self.list_data_dict[i]:
             # data_dict['image'] = image
             assert sketch_num == len(image_files)
+            print("images length: ", len(images))
             assert sketch_num == len(images)
             assert len(images)>=4
             selected_indices = random.sample(range(len(images)), 4)
             selected_images = [images[idx] for idx in selected_indices] 
             selected_paths = [os.path.join(image_folder, image_files[idx]) for idx in selected_indices]
-
-            data_dict['images'] = selected_images
+            # print("------------------------------------")
+            # print(len(selected_images))
+            # print(torch.stack(selected_images, dim=0).shape)
+            print(data_dict['images'])
+            data_dict['images'] = torch.stack(selected_images, dim=0)[:,0,:,:]
             data_dict['image_paths'] = selected_paths
             # print("data_dict['images'].shape: ", data_dict['images'].shape) # [3, 336, 336] for single sketch; for now torch.Size([4, 1, 3, 384, 384])
         elif self.data_args.is_multimodal:
@@ -319,7 +323,7 @@ class LazySupervisedDataset(Dataset):
         else:
             data_dict['all_floats'] = torch.zeros(0)
             data_dict['float_weight'] = torch.zeros(0)
-        data_dict["id"] = self.list_data_dict[i].get("id", i)
+
         return data_dict
 
 class LazySupervisedDatasetCmb(Dataset):

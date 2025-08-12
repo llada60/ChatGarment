@@ -252,7 +252,6 @@ class LazySupervisedDataset(Dataset):
             crop_size = self.data_args.image_processor.crop_size
             data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
             data_dict['image_path'] = ''
-        
         if has_floats:
             data_dict['all_floats'] = torch.tensor(all_floats).float().reshape(-1)
             data_dict['float_weight'] = torch.tensor(all_floats_weight).float().reshape(-1)
