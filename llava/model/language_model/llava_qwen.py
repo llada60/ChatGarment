@@ -80,28 +80,7 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
 
         if attention_mask is not None and attention_mask.dtype == torch.bool:
             attention_mask = attention_mask.to(dtype=torch.float)
-        # print("attention_mask:", attention_mask)
-        # print("attention_mask dtype:", attention_mask.dtype)
-        # print("attention_mask unique values:", torch.unique(attention_mask))
-        # print("input_ids shape:", input_ids.shape) # [4, 652]
-        # print("attention_mask shape:", attention_mask.shape) # [4, 652]
-        # print("max input_ids:", input_ids.max()) # 151647
-        # print("vocab_size:", self.model.config.vocab_size) # 151648
-        # """
-        # attention_mask: WARNING: tokenization mismatch: 511 vs. 512. (ignored)
-        # tensor([[ True,  True,  True,  ..., False, False, False],
-        #         [ True,  True,  True,  ...,  True,  True,  True],
-        #         [ True,  True,  True,  ..., False, False, False],
-        #         [ True,  True,  True,  ..., False, False, False]], device='cuda:0')
-        # attention_mask dtype: torch.bool
-        # attention_mask unique values: tensor([False,  True], device='cuda:0')
-        # input_ids shape: torch.Size([4, 660])
-        # attention_mask shape: torch.Size([4, 660])
-        # max input_ids: tensor(151647, device='cuda:0')
-        # """
-        # if inputs_embeds is None:
-        #     (_, position_ids, attention_mask, past_key_values, inputs_embeds, labels) = self.prepare_inputs_labels_for_multimodal(input_ids, position_ids, attention_mask, past_key_values, labels, images, modalities, image_sizes)
-        # else:
+
         if inputs_embeds is not None:
             input_ids = None
 
@@ -182,7 +161,6 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
             "predictions": output,
             "output_ids": output_ids
         }
-
 
     @torch.no_grad()
     def generate(
