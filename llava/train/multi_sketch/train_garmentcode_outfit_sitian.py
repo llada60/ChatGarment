@@ -258,9 +258,10 @@ def train_epoch(
             input_dict = dict_to_cuda(input_dict)
 
             assert args.precision == "bf16"
-            input_dict["images"] = input_dict["images"].bfloat16()
+    
+            # input_dict["images"] = input_dict["images"].bfloat16()
             input_dict.pop('image_paths')
-            output_dict = model(**input_dict)
+            output_dict = model(**input_dict) 
             loss = output_dict["loss"]
             ce_loss = output_dict["ce_loss"]
             hmr_loss = output_dict["hmr_loss"]
@@ -596,7 +597,7 @@ def train(attn_implementation=None):
     }
 
     
-    print(type(model))
+    # print(type(model))
     model_engine, _, train_loader, scheduler = deepspeed.initialize(
         model=model,
         model_parameters=model.parameters(),

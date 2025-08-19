@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
 
-import transformers
 from transformers import AutoConfig, AutoModelForCausalLM, LlamaConfig, LlamaModel, LlamaForCausalLM
 
 from transformers.modeling_outputs import CausalLMOutputWithPast
@@ -85,7 +84,7 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
             input_ids = None
 
         # breakpoint()
-        
+
         output = super().forward(
             input_ids=input_ids, #FIXME: here the LLava-OV's input_ids is not the same structure as LLava, but should figure out and change the input style
             attention_mask=attention_mask,

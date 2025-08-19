@@ -17,10 +17,10 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 deepspeed llava/train/multi_sketch/train_mem_garmentcode_outfit.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
-    --model_name_or_path /home/ids/liliu/models/llava-onevision-qwen2-7b-ov \
+    --model_name_or_path /home/ids/yuhe/ll_space/models/llava-onevision-qwen2-7b-ov \
     --version v1 \
     --data_path ./ \
-    --data_path_eval /home/ids/liliu/data/ChatGarment/evaluations/garment_edit_eva.json \
+    --data_path_eval /home/ids/yuhe/ll_space/data/ChatGarment/evaluations/garment_edit_eva.json \
     --image_folder ./ \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \
@@ -51,5 +51,5 @@ deepspeed llava/train/multi_sketch/train_mem_garmentcode_outfit.py \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
     --report_to wandb \
-    --data_root_path /home/ids/liliu/data/ChatGarment/training/synthetic/new_sketches
+    --data_root_path /home/ids/yuhe/ll_space/data/ChatGarment/training/synthetic/new_sketches
 

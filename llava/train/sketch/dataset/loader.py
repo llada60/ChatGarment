@@ -176,7 +176,7 @@ class LazySupervisedDataset(Dataset):
         ################ prompt augmentation ################
         prompt = sources["conversations"][0]["value"] # human prompt
         prompt = change_prompt(prompt[:])
-        sources["conversations"][0]["value"] = prompt
+        sources["conversations"][0]["value"] = prompt 
 
         if self.has_sewing_pattern:
             answer = sources["conversations"][1]["value"] # gpt answer
@@ -252,7 +252,7 @@ class LazySupervisedDataset(Dataset):
             crop_size = self.data_args.image_processor.crop_size
             data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
             data_dict['image_path'] = ''
-        
+        # print("data_dict['image'] shape: ", data_dict['image'].shape)
         if has_floats:
             data_dict['all_floats'] = torch.tensor(all_floats).float().reshape(-1)
             data_dict['float_weight'] = torch.tensor(all_floats_weight).float().reshape(-1)

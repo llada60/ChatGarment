@@ -15,10 +15,10 @@ export EGL_DEVICE_ID=$GPU_DEVICE_ORDINAL
 deepspeed llava/train/image/train_mem_garmentcode_outfit.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero2.json \
-    --model_name_or_path /home/ids/liliu/data/llava/llava-v1.5-7b \
+    --model_name_or_path /home/ids/yuhe/ll_space/data/llava/llava-v1.5-7b \
     --version v1 \
     --data_path ./ \
-    --data_path_eval /home/ids/liliu/data/ChatGarment/evaluations/garment_edit_eva.json \
+    --data_path_eval /home/ids/yuhe/ll_space/data/ChatGarment/evaluations/garment_edit_eva.json \
     --image_folder ./ \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \

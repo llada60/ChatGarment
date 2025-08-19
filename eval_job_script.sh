@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=0eval          # Name of your job
-#SBATCH --output=eval_logs/%x_%j.out            # Output file (%x for job name, %j for job ID)
-#SBATCH --error=eval_logs/%x_%j.err             # Error file
+#SBATCH --output=logs/eval_logs/%x_%j.out            # Output file (%x for job name, %j for job ID)
+#SBATCH --error=logs/eval_logs/%x_%j.err             # Error file
 #SBATCH --partition=L40S              # Partition to submit to (A100, V100, etc.)
 #SBATCH --gres=gpu:1                  # Request 1 GPU
 #SBATCH --time=24:00:00               # Time limit for the job (hh:mm:ss)

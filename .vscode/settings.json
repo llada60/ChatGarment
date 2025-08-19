@@ -1,0 +1,6 @@
+{
+    "jupyter.debugJustMyCode": false,
+    "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.inlayHints.functionReturnTypes": false,
+    "python.analysis.typeEvaluation.deprecateTypingAliases": false
+}

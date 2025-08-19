@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/home/ids/liliu/projects/ChatGarment')
+sys.path.append('/home/ids/yuhe/ll_space/projects/ChatGarment')
 from llava.train.multi_sketch.train_garmentcode_outfit_sitian import train
 import os
 os.environ["MASTER_PORT"] = "10503"

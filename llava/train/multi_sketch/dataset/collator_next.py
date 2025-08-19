@@ -36,13 +36,13 @@ class DataCollatorForSupervisedDataset(object):
         labels = self.pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)
         batch = dict(
             input_ids=input_ids,
-             labels=labels.long() if labels.dtype == torch.int32 else labels,
-              attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
-              image_paths=image_paths,
-              float_labels=all_floats,
-              float_weight=float_weight)
+            labels=labels.long() if labels.dtype == torch.int32 else labels,
+            attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
+            image_paths=image_paths,
+            float_labels=all_floats,
+            float_weight=float_weight)
         # batch = dict(input_ids=input_ids, labels=labels, attention_mask=input_ids.ne(self.tokenizer.pad_token_id), ids=ids)
-
+        
         if "images" in instances[0]:
             images = [instance["images"] for instance in instances]
 

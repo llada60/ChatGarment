@@ -239,9 +239,10 @@ class LazySupervisedDataset(Dataset):
             sources["conversations"][0]["value"] = '<image>\n' + prompt
             self.list_data_dict[i]['sketch_path'] = "docs/images/black_img.jpg"
             sources["sketch_path"] = "docs/images/black_img.jpg"
+            sources["sketch_num"] = 1
             rand_flag = False
         else:
-            sources["conversations"][0]["value"] = '<image>\n <image>\n <image>\n' + sources["conversations"][0]["value"]
+            sources["conversations"][0]["value"] = '<image>\n<image>\n<image>\n' + sources["conversations"][0]["value"]
         # print("final prompt: ", sources["conversations"][0]["value"])
         # print("sketch_path: ", self.list_data_dict[i]['sketch_path'])
         # raise False
@@ -255,25 +256,21 @@ class LazySupervisedDataset(Dataset):
             has_floats = True
             all_floats, all_floats_weight = generate_all_float_labels(sources[0]['all_floats'], indices)
         
-        if 'sketch_path' in sources[0]:
-            if 'sketch_num' in sources[0]:
-                sketch_num = sources[0]['sketch_num']
-            else:
-                sketch_num = 1
-            # print("sketch_num: ", sketch_num)
-            # sketch_num = len(sources[0]['sketch_path'])
+        if 'sketch_num' in sources[0]:
+            sketch_num = sources[0]['sketch_num']
 
-            image_files = sources[0]['sketch_path']
             image_folder = self.data_args.image_folder
             processor = self.data_args.image_processor
             model = self.data_args.model
-            print("sketch_path: ", image_files)
+            image_files = sources[0]['sketch_path']
+            
+            # print("sketch_path: ", image_files)
             if type(image_files) is list:
                 images = [self.process_image(f) for f in image_files] # return image, image_size, "image"
                 if len(image_files) > 1:
                     images = [self.process_image(f, "pad") for f in image_files]
                     images = [[im[0], im[1], "image"] for im in images]
-                    # print("images1: ", images)
+                print("sketch_path1")
             else:
                 print("sketch_path2: ", image_files)
                 images = [self.process_image(image_files)]
@@ -293,17 +290,21 @@ class LazySupervisedDataset(Dataset):
                              labels=data_dict["labels"][0])
         # image exist in the data
         # print('sketch_path', image.shape) # image torch.Size([3, 336, 336])
-        if 'sketch_num' in self.list_data_dict[i]:
-            # data_dict['image'] = image
-            assert sketch_num == len(image_files)
-            assert sketch_num == len(images)
-            assert len(images)>=4
-            selected_indices = random.sample(range(len(images)), 4)
-            selected_images = [images[idx] for idx in selected_indices] 
-            selected_paths = [os.path.join(image_folder, image_files[idx]) for idx in selected_indices]
+        if 'sketch_path' in self.list_data_dict[i]:
+            if sketch_num >= 4:
+                # data_dict['image'] = image
+                assert sketch_num == len(image_files)
+                assert sketch_num == len(images)
+                selected_indices = random.sample(range(len(images)), 4)
+                selected_images = [images[idx] for idx in selected_indices] 
+                selected_paths = [os.path.join(image_folder, image_files[idx]) for idx in selected_indices]
 
-            data_dict['images'] = selected_images
-            data_dict['image_paths'] = selected_paths
+                data_dict['images'] = selected_images
+                data_dict['image_paths'] = selected_paths
+            else:
+                data_dict['images'] = images
+                data_dict['image_paths'] = os.path.join(image_folder, image_files)
+            
             # print("data_dict['images'].shape: ", data_dict['images'].shape) # [3, 336, 336] for single sketch; for now torch.Size([4, 1, 3, 384, 384])
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
